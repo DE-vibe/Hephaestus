@@ -1,0 +1,6 @@
+{
+  "name": "Hephaestus",
+  "description": "A browser-based professional creative suite for manual restoration, enhancement, and editing of images and videos. Zero AI, total manual control, local execution, and privacy-first.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

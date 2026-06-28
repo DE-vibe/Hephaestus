@@ -1,0 +1,80 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;800;900&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Cinzel", Georgia, serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+/* Custom scrollbar styling for professional creative suite look */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary, #121214);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color, #2a2a2f);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-gilded, #3f3f46);
+}
+
+/* Greek Theme Variables */
+.theme-dark {
+  --bg-primary: #09090b;
+  --bg-secondary: #121214;
+  --bg-tertiary: #1c1c1f;
+  --border-color: #222226;
+  --border-gilded: #8c7355;
+  --text-primary: #f4f4f5;
+  --text-secondary: #a1a1aa;
+  --accent-color: #e25c24;
+  --accent-hover: #f98435;
+  --header-bg: #0c0c0e;
+  --card-bg: #121214;
+  --clay-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  --selection-bg: #e25c24;
+}
+
+.theme-light {
+  --bg-primary: #FAF7F0;
+  --bg-secondary: #F3ECE0;
+  --bg-tertiary: #EBE1CE;
+  --border-color: #DFD5C1;
+  --border-gilded: #C5A059;
+  --text-primary: #2C2621;
+  --text-secondary: #706355;
+  --accent-color: #B25329;
+  --accent-hover: #D0693B;
+  --header-bg: #EAE1D0;
+  --card-bg: #FAF7F0;
+  --clay-shadow: 0 4px 12px rgba(139,90,43,0.12);
+  --selection-bg: #B25329;
+}
+
+/* Custom theme mapping helpers */
+.bg-custom-primary { background-color: var(--bg-primary); }
+.bg-custom-secondary { background-color: var(--bg-secondary); }
+.bg-custom-tertiary { background-color: var(--bg-tertiary); }
+.border-custom-color { border-color: var(--border-color); }
+.border-custom-gilded { border-color: var(--border-gilded); }
+.text-custom-primary { color: var(--text-primary); }
+.text-custom-secondary { color: var(--text-secondary); }
+.text-custom-accent { color: var(--accent-color); }
+.bg-custom-accent { background-color: var(--accent-color); }
+.bg-custom-header { background-color: var(--header-bg); }
+.bg-custom-card { background-color: var(--card-bg); }
+
+/* Classic greek meander background pattern helper */
+.greek-pattern {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='8' viewBox='0 0 16 8'%3E%3Cpath d='M0 1h6v5h-4v-3h2v1h-1v1h2v-2h-3v4h5V0H0z' fill='%23c5a059' fill-opacity='0.25'/%3E%3C/svg%3E");
+  background-size: 16px 8px;
+  background-repeat: repeat-x;
+}
