@@ -14,7 +14,8 @@ import {
   EyeOff,
   Activity,
   Columns,
-  Grid
+  Grid,
+  Target
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ToolType, CloneStampSettings, FilterAdjustments, VideoState } from '../types';
@@ -44,6 +45,8 @@ interface WorkspaceProps {
   setPan: (p: { x: number; y: number }) => void;
   imageDimensions: { width: number; height: number } | null;
   setImageDimensions: (dims: { width: number; height: number }) => void;
+  fileName?: string;
+  videoCrop?: { x: number; y: number; w: number; h: number } | null;
 }
 
 export default function Workspace({
@@ -63,6 +66,8 @@ export default function Workspace({
   setPan,
   imageDimensions,
   setImageDimensions,
+  fileName,
+  videoCrop,
 }: WorkspaceProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const displayCanvasRef = useRef<HTMLCanvasElement>(null); // Screen filtered render
@@ -78,6 +83,11 @@ export default function Workspace({
   const [isComparing, setIsComparing] = useState(false);
   const [splitRatio, setSplitRatio] = useState(0.5);
   const [isPressingCompare, setIsPressingCompare] = useState(false);
+
+  const [isChangesTrackerCollapsed, setIsChangesTrackerCollapsed] = useState(false);
+
+  // Keep track of the last loaded file name to fit only on new selection
+  const lastFileRef = useRef<string | null>(null);
 
   // Grid Overlay States
   const [showGridSettings, setShowGridSettings] = useState(false);
@@ -149,6 +159,35 @@ export default function Workspace({
   // Crop State
   const [cropBox, setCropBox] = useState({ x: 10, y: 10, w: 80, h: 80 }); // Percentages of canvas
   const [activeHandle, setActiveHandle] = useState<string | null>(null);
+  const [selectedRatio, setSelectedRatio] = useState<string>('free');
+
+  const setCropAspectRatio = (ratioStr: string) => {
+    setSelectedRatio(ratioStr);
+
+    if (ratioStr === 'free') return;
+    if (!imageDimensions) return;
+
+    const [wRatio, hRatio] = ratioStr.split(':').map(Number);
+    const R = wRatio / hRatio; // Target ratio (W/H)
+    const imgW = imageDimensions.width;
+    const imgH = imageDimensions.height;
+
+    const K = R * (imgH / imgW); // Ratio of percentage widths (w_pct / h_pct)
+
+    let w, h;
+    if (K <= 1) {
+      h = 80;
+      w = 80 * K;
+    } else {
+      w = 80;
+      h = 80 / K;
+    }
+
+    const x = (100 - w) / 2;
+    const y = (100 - h) / 2;
+
+    setCropBox({ x, y, w, h });
+  };
 
   // Listen to mouse position globally for smooth document-wide dragging
   useEffect(() => {
@@ -344,8 +383,13 @@ export default function Workspace({
         const baseCtx = baseCanvas.getContext('2d')!;
         
         const upscale = videoState.upscaleFactor || 1.0;
-        const targetW = Math.round(video.videoWidth * upscale);
-        const targetH = Math.round(video.videoHeight * upscale);
+        let targetW = Math.round(video.videoWidth * upscale);
+        let targetH = Math.round(video.videoHeight * upscale);
+
+        if (videoCrop) {
+          targetW = videoCrop.w;
+          targetH = videoCrop.h;
+        }
 
         // Make sure base canvas matches video sizing
         if (baseCanvas.width !== targetW || baseCanvas.height !== targetH) {
@@ -358,7 +402,15 @@ export default function Workspace({
         baseCtx.imageSmoothingEnabled = (videoState.upscaleMethod !== 'nearest');
         baseCtx.imageSmoothingQuality = 'high';
         
-        baseCtx.drawImage(video, 0, 0, targetW, targetH);
+        if (videoCrop) {
+          const sx = videoCrop.x / upscale;
+          const sy = videoCrop.y / upscale;
+          const sw = videoCrop.w / upscale;
+          const sh = videoCrop.h / upscale;
+          baseCtx.drawImage(video, sx, sy, sw, sh, 0, 0, videoCrop.w, videoCrop.h);
+        } else {
+          baseCtx.drawImage(video, 0, 0, targetW, targetH);
+        }
         renderDisplay();
       }
       animFrameId = requestAnimationFrame(updateFrame);
@@ -371,8 +423,13 @@ export default function Workspace({
         const baseCtx = baseCanvas.getContext('2d')!;
         
         const upscale = videoState.upscaleFactor || 1.0;
-        const targetW = Math.round(video.videoWidth * upscale);
-        const targetH = Math.round(video.videoHeight * upscale);
+        let targetW = Math.round(video.videoWidth * upscale);
+        let targetH = Math.round(video.videoHeight * upscale);
+
+        if (videoCrop) {
+          targetW = videoCrop.w;
+          targetH = videoCrop.h;
+        }
 
         if (baseCanvas.width !== targetW || baseCanvas.height !== targetH) {
           baseCanvas.width = targetW;
@@ -384,7 +441,15 @@ export default function Workspace({
         baseCtx.imageSmoothingEnabled = (videoState.upscaleMethod !== 'nearest');
         baseCtx.imageSmoothingQuality = 'high';
         
-        baseCtx.drawImage(video, 0, 0, targetW, targetH);
+        if (videoCrop) {
+          const sx = videoCrop.x / upscale;
+          const sy = videoCrop.y / upscale;
+          const sw = videoCrop.w / upscale;
+          const sh = videoCrop.h / upscale;
+          baseCtx.drawImage(video, sx, sy, sw, sh, 0, 0, videoCrop.w, videoCrop.h);
+        } else {
+          baseCtx.drawImage(video, 0, 0, targetW, targetH);
+        }
         renderDisplay();
       }
     };
@@ -405,7 +470,7 @@ export default function Workspace({
         video.removeEventListener('timeupdate', handleSeek);
       }
     };
-  }, [videoState.playing, videoState.upscaleFactor, videoState.upscaleMethod, adjustments]);
+  }, [videoState.playing, videoState.upscaleFactor, videoState.upscaleMethod, adjustments, videoCrop]);
 
   // Center & Fit Canvas inside workspace initially
   const fitToScreen = () => {
@@ -413,28 +478,61 @@ export default function Workspace({
     const canvas = displayCanvasRef.current;
     if (!container || !canvas) return;
 
-    const pad = 40;
-    const cw = container.clientWidth - pad;
-    const ch = container.clientHeight - pad;
-    const iw = canvas.width;
-    const ih = canvas.height;
-
-    if (iw === 0 || ih === 0) return;
-
-    const scale = Math.min(cw / iw, ch / ih, 3.0); // Max zoom fit of 300%
+    const scale = 0.41; // Scale should be at 41 percent
     setZoom(scale);
     setPan({
-      x: (container.clientWidth - iw * scale) / 2,
-      y: (container.clientHeight - ih * scale) / 2,
+      x: (container.clientWidth - canvas.width * scale) / 2,
+      y: (container.clientHeight - canvas.height * scale) / 2,
     });
   };
 
-  // Trigger Fit on first file load
+  // Reset Zoom back to 100% actual pixel size
+  const resetZoom = () => {
+    setZoom(1.0);
+  };
+
+  // Trigger Fit on first file load, on container resize when first mounting/animating, or whenever a new picture or video is selected
   useEffect(() => {
-    if (imageDimensions) {
-      setTimeout(fitToScreen, 80);
+    const container = containerRef.current;
+    if (!container || !imageDimensions) return;
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect;
+        if (width > 0 && height > 0) {
+          // If it's a newly selected file/video, or if it hasn't been fitted in the settled layout yet
+          const currentFile = fileName || '';
+          if (lastFileRef.current !== currentFile) {
+            fitToScreen();
+            lastFileRef.current = currentFile;
+          }
+        }
+      }
+    });
+
+    resizeObserver.observe(container);
+
+    // Initial backup trigger
+    const timer = setTimeout(() => {
+      const currentFile = fileName || '';
+      if (lastFileRef.current !== currentFile) {
+        fitToScreen();
+        lastFileRef.current = currentFile;
+      }
+    }, 80);
+
+    return () => {
+      resizeObserver.disconnect();
+      clearTimeout(timer);
+    };
+  }, [imageDimensions, fileName]);
+
+  // Listen for special zoom value 0.99 which signals "Zoom to Fit" from parent controls
+  useEffect(() => {
+    if (zoom === 0.99 && imageDimensions) {
+      fitToScreen();
     }
-  }, [imageDimensions?.width, imageDimensions?.height]);
+  }, [zoom, imageDimensions]);
 
   // Zoom on wheel scroll
   const handleWheel = (e: React.WheelEvent) => {
@@ -443,20 +541,12 @@ export default function Workspace({
     const container = containerRef.current;
     if (!container) return;
 
-    const mouseX = e.clientX - container.getBoundingClientRect().left;
-    const mouseY = e.clientY - container.getBoundingClientRect().top;
-
     const wheel = e.deltaY < 0 ? 1 : -1;
     const zoomFactor = Math.exp(wheel * zoomIntensity);
 
     const nextZoom = Math.min(Math.max(zoom * zoomFactor, 0.05), 16.0); // 5% to 1600%
 
-    // Pan adjust so we zoom-to-mouse-pointer
-    const newPanX = mouseX - (mouseX - pan.x) * (nextZoom / zoom);
-    const newPanY = mouseY - (mouseY - pan.y) * (nextZoom / zoom);
-
     setZoom(nextZoom);
-    setPan({ x: newPanX, y: newPanY });
   };
 
   // Drawing brush-stroke interpolator (Bresenham / DDA step circle painting)
@@ -506,9 +596,7 @@ export default function Workspace({
   // Mouse Actions inside Canvas Viewport
   const handleCanvasMouseDown = (e: React.MouseEvent) => {
     if (activeTool === 'select' || e.button === 1 || e.shiftKey) {
-      // Middle click, Hand tool or Shift drag starts panning
-      setIsPanning(true);
-      setStartPan({ x: e.clientX, y: e.clientY });
+      // Middle click, Hand tool or Shift drag starts panning - DISABLED
       return;
     }
 
@@ -613,34 +701,107 @@ export default function Workspace({
 
   const handleCropContainerMouseMove = (e: React.MouseEvent) => {
     if (!activeHandle) return;
+    if (!imageDimensions) return;
 
-    const dx = ((e.clientX - startPan.x) / containerRef.current!.clientWidth) * 100;
-    const dy = ((e.clientY - startPan.y) / containerRef.current!.clientHeight) * 100;
+    const viewportW = imageDimensions.width * zoom;
+    const viewportH = imageDimensions.height * zoom;
+
+    if (viewportW === 0 || viewportH === 0) return;
+
+    const dx = ((e.clientX - startPan.x) / viewportW) * 100;
+    const dy = ((e.clientY - startPan.y) / viewportH) * 100;
 
     setStartPan({ x: e.clientX, y: e.clientY });
 
     setCropBox((prev) => {
       let { x, y, w, h } = prev;
 
-      if (activeHandle.includes('e')) {
-        w = Math.max(10, Math.min(100 - x, w + dx));
+      if (selectedRatio === 'free') {
+        if (activeHandle.includes('e')) {
+          w = Math.max(10, Math.min(100 - x, w + dx));
+        }
+        if (activeHandle.includes('w')) {
+          const oldX = x;
+          x = Math.max(0, Math.min(x + w - 10, x + dx));
+          w = w - (x - oldX);
+        }
+        if (activeHandle.includes('s')) {
+          h = Math.max(10, Math.min(100 - y, h + dy));
+        }
+        if (activeHandle.includes('n')) {
+          const oldY = y;
+          y = Math.max(0, Math.min(y + h - 10, y + dy));
+          h = h - (y - oldY);
+        }
+        if (activeHandle === 'move') {
+          x = Math.max(0, Math.min(100 - w, x + dx));
+          y = Math.max(0, Math.min(100 - h, y + dy));
+        }
+        return { x, y, w, h };
       }
-      if (activeHandle.includes('w')) {
-        const oldX = x;
-        x = Math.max(0, Math.min(x + w - 10, x + dx));
-        w = w - (x - oldX);
-      }
-      if (activeHandle.includes('s')) {
-        h = Math.max(10, Math.min(100 - y, h + dy));
-      }
-      if (activeHandle.includes('n')) {
-        const oldY = y;
-        y = Math.max(0, Math.min(y + h - 10, y + dy));
-        h = h - (y - oldY);
-      }
+
+      // Enforced Aspect Ratio logic
       if (activeHandle === 'move') {
         x = Math.max(0, Math.min(100 - w, x + dx));
         y = Math.max(0, Math.min(100 - h, y + dy));
+        return { x, y, w, h };
+      }
+
+      if (!imageDimensions) return prev;
+      const [wRatio, hRatio] = selectedRatio.split(':').map(Number);
+      const R = wRatio / hRatio;
+      const imgW = imageDimensions.width;
+      const imgH = imageDimensions.height;
+      const K = R * (imgH / imgW); // w / h should be K
+
+      if (activeHandle === 'se' || activeHandle === 'e' || activeHandle === 's') {
+        let targetW = Math.max(10, Math.min(100 - x, w + dx));
+        let targetH = targetW / K;
+        if (y + targetH > 100) {
+          targetH = 100 - y;
+          targetW = targetH * K;
+        }
+        if (targetW < 10 || targetH < 10) return prev;
+        w = targetW;
+        h = targetH;
+      } else if (activeHandle === 'nw' || activeHandle === 'n' || activeHandle === 'w') {
+        const right = x + w;
+        const bottom = y + h;
+        let targetW = Math.max(10, Math.min(right, w - dx));
+        let targetH = targetW / K;
+        if (bottom - targetH < 0) {
+          targetH = bottom;
+          targetW = targetH * K;
+        }
+        if (targetW < 10 || targetH < 10) return prev;
+        w = targetW;
+        h = targetH;
+        x = right - w;
+        y = bottom - h;
+      } else if (activeHandle === 'ne') {
+        const bottom = y + h;
+        let targetW = Math.max(10, Math.min(100 - x, w + dx));
+        let targetH = targetW / K;
+        if (bottom - targetH < 0) {
+          targetH = bottom;
+          targetW = targetH * K;
+        }
+        if (targetW < 10 || targetH < 10) return prev;
+        w = targetW;
+        h = targetH;
+        y = bottom - h;
+      } else if (activeHandle === 'sw') {
+        const right = x + w;
+        let targetH = Math.max(10, Math.min(100 - y, h + dy));
+        let targetW = targetH * K;
+        if (right - targetW < 0) {
+          targetW = right;
+          targetH = targetW / K;
+        }
+        if (targetW < 10 || targetH < 10) return prev;
+        w = targetW;
+        h = targetH;
+        x = right - w;
       }
 
       return { x, y, w, h };
@@ -685,6 +846,7 @@ export default function Workspace({
       ref={containerRef}
       onWheel={handleWheel}
       onMouseMove={activeHandle ? handleCropContainerMouseMove : undefined}
+      onDoubleClick={fitToScreen}
       className="flex-1 bg-[#09090b] relative overflow-hidden flex items-center justify-center cursor-default h-full"
       style={{
         cursor: activeTool === 'select' ? (isPanning ? 'grabbing' : 'grab') : 'crosshair'
@@ -695,15 +857,18 @@ export default function Workspace({
 
       {/* Viewport content */}
       <div
-        className="absolute transition-transform duration-75 ease-out select-none"
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 select-none"
         style={{
-          transform: `translate(${pan.x}px, ${pan.y}px)`,
-          width: imageDimensions ? `${imageDimensions.width}px` : 'auto',
-          height: imageDimensions ? `${imageDimensions.height}px` : 'auto',
+          width: imageDimensions ? `${imageDimensions.width * zoom}px` : 'auto',
+          height: imageDimensions ? `${imageDimensions.height * zoom}px` : 'auto',
         }}
         onMouseDown={handleCanvasMouseDown}
         onMouseMove={handleCanvasMouseMove}
         onMouseUp={handleCanvasMouseUp}
+        onDoubleClick={(e) => {
+          e.stopPropagation();
+          fitToScreen();
+        }}
       >
         {/* Hidden processing buffers and tags */}
         <canvas ref={baseCanvasRef} className="hidden" />
@@ -711,10 +876,15 @@ export default function Workspace({
         {/* Display Filtered Image */}
         <canvas
           ref={displayCanvasRef}
-          className="shadow-2xl border border-zinc-800 bg-[size:16px_16px] bg-[position:0_0,8px_8px] bg-[linear-gradient(45deg,#121214_25%,transparent_25%,transparent_75%,#121214_75%,#121214),linear-gradient(45deg,#121214_25%,#1a1a1e_25%,#1a1a1e_75%,#121214_75%,#121214)]"
+          className="shadow-2xl border border-zinc-800 bg-[size:16px_16px] bg-[position:0_0,8px_8px] bg-[linear-gradient(45deg,#121214_25%,transparent_25%,transparent_75%,#121214_75%,#121214),linear-gradient(45deg,#121214_25%,#1a1a1e_25%,#1a1a1e_75%,#121214_75%,#121214)] transition-shadow duration-300"
           style={{
             width: imageDimensions ? `${imageDimensions.width * zoom}px` : 'auto',
             height: imageDimensions ? `${imageDimensions.height * zoom}px` : 'auto',
+            imageRendering: zoom >= 2 ? 'pixelated' : 'auto'
+          }}
+          onDoubleClick={(e) => {
+            e.stopPropagation();
+            fitToScreen();
           }}
         />
 
@@ -835,12 +1005,30 @@ export default function Workspace({
               </button>
               <span className="w-px h-3.5 bg-zinc-700" />
               <button
-                onClick={(e) => { e.stopPropagation(); setCropBox({ x: 10, y: 10, w: 80, h: 80 }); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedRatio('free');
+                  setCropBox({ x: 10, y: 10, w: 80, h: 80 });
+                }}
                 className="p-1 rounded-full bg-zinc-800 hover:bg-zinc-700 text-gray-300 transition-colors"
                 title="Reset Crop box"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
+              <span className="w-px h-3.5 bg-zinc-700" />
+              <select
+                value={selectedRatio}
+                onChange={(e) => { e.stopPropagation(); setCropAspectRatio(e.target.value); }}
+                onMouseDown={(e) => e.stopPropagation()}
+                className="bg-zinc-900 border border-zinc-700 text-gray-200 text-xs rounded px-2 py-0.5 outline-none cursor-pointer hover:bg-zinc-800 hover:border-zinc-600 transition-colors"
+                title="Aspect Ratio"
+              >
+                <option value="free">Free Form</option>
+                <option value="1:1">1:1 (Square)</option>
+                <option value="4:3">4:3 (Standard)</option>
+                <option value="16:9">16:9 (Widescreen)</option>
+                <option value="9:16">9:16 (Portrait)</option>
+              </select>
             </div>
           </div>
         )}
@@ -1032,6 +1220,13 @@ export default function Workspace({
             >
               <Maximize2 className="w-3 h-3" />
             </button>
+            <button
+              onClick={resetZoom}
+              className="p-1 rounded hover:bg-[#1c1c1f] hover:text-white transition-colors"
+              title="Reset to Actual Size (100% Zoom)"
+            >
+              <Target className="w-3 h-3" />
+            </button>
             <span className="text-zinc-700">|</span>
             <button
               onClick={() => setShowGridSettings(!showGridSettings)}
@@ -1051,135 +1246,175 @@ export default function Workspace({
 
       {/* Floating Real-time Live Changes Tracker & Comparison Suite */}
       {imageDimensions && (
-        <div className="absolute top-4 right-4 max-w-[280px] sm:max-w-[320px] w-full bg-[#121214]/95 backdrop-blur-md border border-[#222226] rounded-xl shadow-2xl p-3.5 z-30 flex flex-col space-y-3">
-          {/* Header */}
-          <div className="flex items-center justify-between border-b border-[#222226] pb-2">
-            <div className="flex items-center space-x-2">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#f98435] opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#e25c24]"></span>
-              </span>
-              <span className="text-[11px] font-mono font-bold tracking-wider text-gray-200 uppercase">
-                Real-time Changes Feed
-              </span>
-            </div>
-            <span className="text-[9px] bg-zinc-800/80 border border-zinc-700/50 text-zinc-400 font-mono px-1.5 py-0.5 rounded">
-              {getActiveChanges().length} active
-            </span>
-          </div>
-
-          {/* Interactive Compare Tool Section */}
-          <div className="space-y-2 bg-[#17171a] border border-[#222226] p-2.5 rounded-lg">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-mono text-gray-400 flex items-center space-x-1">
-                <Columns className="w-3 h-3 text-[#f98435]" />
-                <span>Compare Tools</span>
-              </span>
-            </div>
-
-            {/* Hold to Compare Button & Toggle */}
-            <div className="grid grid-cols-2 gap-2 pt-1">
-              <button
-                onMouseDown={() => setIsPressingCompare(true)}
-                onMouseUp={() => setIsPressingCompare(false)}
-                onMouseLeave={() => setIsPressingCompare(false)}
-                onTouchStart={() => setIsPressingCompare(true)}
-                onTouchEnd={() => setIsPressingCompare(false)}
-                className={`py-1.5 px-2.5 rounded text-[10px] font-mono font-medium transition-all flex items-center justify-center space-x-1 border select-none ${
-                  isPressingCompare
-                    ? 'bg-zinc-100 text-black border-zinc-200 shadow-inner'
-                    : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700/50'
-                }`}
-                title="Press and hold to temporarily peek at the raw unadjusted original"
-              >
-                {isPressingCompare ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3 text-zinc-400" />}
-                <span>Hold to Original</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  setIsComparing(!isComparing);
-                  if (!isComparing) {
-                    setIsPressingCompare(false);
-                  }
-                }}
-                className={`py-1.5 px-2.5 rounded text-[10px] font-mono font-medium transition-all flex items-center justify-center space-x-1 border ${
-                  isComparing
-                    ? 'bg-[#e25c24]/20 text-[#f98435] border-[#e25c24]/40 font-bold shadow-md shadow-[#e25c24]/5'
-                    : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700/50'
-                }`}
-              >
-                <Columns className="w-3 h-3" />
-                <span>{isComparing ? 'Split Active' : 'Split Slider'}</span>
-              </button>
-            </div>
-
-            {/* Split Screen Slider (if active) */}
-            <AnimatePresence>
-              {isComparing && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  className="space-y-1 overflow-hidden pt-1.5 border-t border-zinc-800/60"
-                >
-                  <div className="flex justify-between font-mono text-[9px] text-gray-400">
-                    <span>Original (Left)</span>
-                    <span>Modified (Right)</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.01"
-                      value={splitRatio}
-                      onChange={(e) => setSplitRatio(parseFloat(e.target.value))}
-                      className="w-full accent-[#e25c24] bg-zinc-900 h-1.5 rounded cursor-pointer"
-                    />
-                    <span className="text-[10px] font-mono text-zinc-300 w-8 text-right font-bold">
-                      {Math.round(splitRatio * 100)}%
-                    </span>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-
-          {/* Active Changes Log List */}
-          <div className="max-h-[140px] sm:max-h-[180px] overflow-y-auto pr-1.5 scrollbar-thin scrollbar-thumb-zinc-800 space-y-1.5">
-            <AnimatePresence initial={false}>
-              {getActiveChanges().length === 0 ? (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="py-6 text-center text-[10px] text-zinc-500 font-mono leading-relaxed bg-[#121214]/40 rounded-lg border border-dashed border-zinc-800"
-                >
-                  No filter adjustments applied.
-                  <br />
-                  Sliders are at default states.
-                </motion.div>
-              ) : (
-                <div className="flex flex-col gap-1.5">
-                  {getActiveChanges().map((item) => (
-                    <motion.div
-                      key={item.key}
-                      initial={{ opacity: 0, x: 10, scale: 0.95 }}
-                      animate={{ opacity: 1, x: 0, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.9, x: -10 }}
-                      transition={{ duration: 0.15 }}
-                      className={`flex items-center justify-between px-2.5 py-1.5 rounded-md border text-[10px] font-mono ${item.color} shadow-sm`}
-                    >
-                      <span className="font-medium text-zinc-300">{item.label}</span>
-                      <span className="font-bold tracking-tight">{item.value}</span>
-                    </motion.div>
-                  ))}
+        <AnimatePresence mode="wait">
+          {!isChangesTrackerCollapsed ? (
+            <motion.div
+              key="expanded-tracker"
+              initial={{ opacity: 0, scale: 0.95, y: -10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: -10 }}
+              transition={{ duration: 0.15 }}
+              className="absolute top-4 right-4 max-w-[280px] sm:max-w-[320px] w-full bg-[#121214]/95 backdrop-blur-md border border-[#222226] rounded-xl shadow-2xl p-3.5 z-30 flex flex-col space-y-3"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-[#222226] pb-2">
+                <div className="flex items-center space-x-2">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#f98435] opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-[#e25c24]"></span>
+                  </span>
+                  <span className="text-[11px] font-mono font-bold tracking-wider text-gray-200 uppercase">
+                    Real-time Changes Feed
+                  </span>
                 </div>
-              )}
-            </AnimatePresence>
-          </div>
-        </div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-[9px] bg-zinc-800/80 border border-zinc-700/50 text-zinc-400 font-mono px-1.5 py-0.5 rounded">
+                    {getActiveChanges().length} active
+                  </span>
+                  <button
+                    onClick={() => setIsChangesTrackerCollapsed(true)}
+                    className="p-1 rounded hover:bg-zinc-800/80 text-zinc-400 hover:text-[#f98435] transition-all cursor-pointer"
+                    title="Collapse Changes Feed"
+                  >
+                    <Minimize2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Interactive Compare Tool Section */}
+              <div className="space-y-2 bg-[#17171a] border border-[#222226] p-2.5 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono text-gray-400 flex items-center space-x-1">
+                    <Columns className="w-3 h-3 text-[#f98435]" />
+                    <span>Compare Tools</span>
+                  </span>
+                </div>
+
+                {/* Hold to Compare Button & Toggle */}
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <button
+                    onMouseDown={() => setIsPressingCompare(true)}
+                    onMouseUp={() => setIsPressingCompare(false)}
+                    onMouseLeave={() => setIsPressingCompare(false)}
+                    onTouchStart={() => setIsPressingCompare(true)}
+                    onTouchEnd={() => setIsPressingCompare(false)}
+                    className={`py-1.5 px-2.5 rounded text-[10px] font-mono font-medium transition-all flex items-center justify-center space-x-1 border select-none ${
+                      isPressingCompare
+                        ? 'bg-zinc-100 text-black border-zinc-200 shadow-inner'
+                        : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700/50'
+                    }`}
+                    title="Press and hold to temporarily peek at the raw unadjusted original"
+                  >
+                    {isPressingCompare ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3 text-zinc-400" />}
+                    <span>Hold to Original</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setIsComparing(!isComparing);
+                      if (!isComparing) {
+                        setIsPressingCompare(false);
+                      }
+                    }}
+                    className={`py-1.5 px-2.5 rounded text-[10px] font-mono font-medium transition-all flex items-center justify-center space-x-1 border ${
+                      isComparing
+                        ? 'bg-[#e25c24]/20 text-[#f98435] border-[#e25c24]/40 font-bold shadow-md shadow-[#e25c24]/5'
+                        : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700/50'
+                    }`}
+                  >
+                    <Columns className="w-3 h-3" />
+                    <span>{isComparing ? 'Split Active' : 'Split Slider'}</span>
+                  </button>
+                </div>
+
+                {/* Split Screen Slider (if active) */}
+                <AnimatePresence>
+                  {isComparing && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="space-y-1 overflow-hidden pt-1.5 border-t border-zinc-800/60"
+                    >
+                      <div className="flex justify-between font-mono text-[9px] text-gray-400">
+                        <span>Original (Left)</span>
+                        <span>Modified (Right)</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.01"
+                          value={splitRatio}
+                          onChange={(e) => setSplitRatio(parseFloat(e.target.value))}
+                          className="w-full accent-[#e25c24] bg-zinc-900 h-1.5 rounded cursor-pointer"
+                        />
+                        <span className="text-[10px] font-mono text-zinc-300 w-8 text-right font-bold">
+                          {Math.round(splitRatio * 100)}%
+                        </span>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* Active Changes Log List */}
+              <div className="max-h-[140px] sm:max-h-[180px] overflow-y-auto pr-1.5 scrollbar-thin scrollbar-thumb-zinc-800 space-y-1.5">
+                <AnimatePresence initial={false}>
+                  {getActiveChanges().length === 0 ? (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="py-6 text-center text-[10px] text-zinc-500 font-mono leading-relaxed bg-[#121214]/40 rounded-lg border border-dashed border-zinc-800"
+                    >
+                      No filter adjustments applied.
+                      <br />
+                      Sliders are at default states.
+                    </motion.div>
+                  ) : (
+                    <div className="flex flex-col gap-1.5">
+                      {getActiveChanges().map((item) => (
+                        <motion.div
+                          key={item.key}
+                          initial={{ opacity: 0, x: 10, scale: 0.95 }}
+                          animate={{ opacity: 1, x: 0, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.9, x: -10 }}
+                          transition={{ duration: 0.15 }}
+                          className={`flex items-center justify-between px-2.5 py-1.5 rounded-md border text-[10px] font-mono ${item.color} shadow-sm`}
+                        >
+                          <span className="font-medium text-zinc-300">{item.label}</span>
+                          <span className="font-bold tracking-tight">{item.value}</span>
+                        </motion.div>
+                      ))}
+                    </div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </motion.div>
+          ) : (
+            <motion.button
+              key="collapsed-tracker"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              transition={{ duration: 0.15 }}
+              onClick={() => setIsChangesTrackerCollapsed(false)}
+              className="absolute top-4 right-4 p-3 bg-[#121214]/95 backdrop-blur-md border border-[#222226] rounded-xl shadow-2xl hover:bg-[#1a1a20] hover:border-[#e25c24]/50 hover:shadow-[#e25c24]/10 text-zinc-300 hover:text-[#f98435] transition-all cursor-pointer flex items-center justify-center group z-30"
+              title="Expand Real-time Changes Feed"
+            >
+              <div className="relative">
+                <Activity className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                {getActiveChanges().length > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-[#e25c24] text-white text-[9px] font-bold rounded-full flex items-center justify-center border border-[#121214] animate-bounce">
+                    {getActiveChanges().length}
+                  </span>
+                )}
+              </div>
+            </motion.button>
+          )}
+        </AnimatePresence>
       )}
 
       {/* Stylized Floating Circular Brush Outline Cursor */}

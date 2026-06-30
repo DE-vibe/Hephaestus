@@ -19,7 +19,9 @@ import {
   Moon,
   Smartphone,
   Library,
-  Archive
+  Archive,
+  Upload,
+  Download
 } from 'lucide-react';
 import { FilterAdjustments } from '../types';
 
@@ -47,6 +49,8 @@ interface GlobalToolbarProps {
   onThemeChange: (theme: 'light' | 'dark' | 'phone') => void;
   showGallery: boolean;
   onToggleGallery: () => void;
+  onSaveWorkspaceState: () => void;
+  onLoadWorkspaceState: () => void;
 }
 
 export default function GlobalToolbar({
@@ -73,6 +77,8 @@ export default function GlobalToolbar({
   onThemeChange,
   showGallery,
   onToggleGallery,
+  onSaveWorkspaceState,
+  onLoadWorkspaceState,
 }: GlobalToolbarProps) {
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [showManual, setShowManual] = useState(false);
@@ -119,7 +125,7 @@ export default function GlobalToolbar({
               <path d="M19,5.5H13V7H11V5.5H5C3.34,5.5 2,6.84 2,8.5V11C2,12.66 3.34,14 5,14H7V18H17V14H19C20.66,14 22,12.66 22,11V8.5C22,6.84 20.66,5.5 19,5.5M16,13H8V9H16V13Z" />
             </svg>
           </div>
-          <span className="font-mono text-sm tracking-widest font-semibold uppercase bg-gradient-to-r from-gray-100 to-gray-300 bg-clip-text text-transparent">
+          <span className="font-serif text-sm tracking-widest font-semibold uppercase bg-gradient-to-r from-gray-100 to-gray-300 bg-clip-text text-transparent">
             HEPHAESTUS
           </span>
         </div>
@@ -148,9 +154,25 @@ export default function GlobalToolbar({
                   <span className="flex-1">Open File...</span>
                   <span className="text-[10px] text-gray-500 font-mono">⌘O</span>
                 </button>
+                <button
+                  onClick={() => executeAction(onLoadWorkspaceState)}
+                  className="w-full text-left px-4 py-2 hover:bg-[#2a2a30] hover:text-white flex items-center space-x-2"
+                  title="Load a saved workspace .json state file"
+                >
+                  <Upload className="w-3.5 h-3.5 text-emerald-400" />
+                  <span className="flex-1">Load State (.json)...</span>
+                </button>
                 {hasFile && (
                   <>
                     <div className="border-t border-[#2e2e33] my-1" />
+                    <button
+                      onClick={() => executeAction(onSaveWorkspaceState)}
+                      className="w-full text-left px-4 py-2 hover:bg-[#2a2a30] hover:text-white flex items-center space-x-2"
+                      title="Save current workspace adjustments and settings to a .json file"
+                    >
+                      <Download className="w-3.5 h-3.5 text-cyan-400" />
+                      <span className="flex-1">Save State (.json)</span>
+                    </button>
                     <button
                       onClick={() => executeAction(onSaveFile)}
                       className="w-full text-left px-4 py-2 hover:bg-[#2a2a30] hover:text-white flex items-center space-x-2"

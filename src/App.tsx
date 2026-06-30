@@ -101,9 +101,10 @@ export default function App() {
   // Base State
   const [activeTool, setActiveTool] = useState<ToolType>('select');
   const [adjustments, setAdjustments] = useState<FilterAdjustments>(INITIAL_ADJUSTMENTS);
-  const [zoom, setZoom] = useState(1.0);
+  const [zoom, setZoom] = useState(0.41);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null);
+  const [videoCrop, setVideoCrop] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
 
   // Active Tool Settings
   const [cloneSettings, setCloneSettings] = useState<CloneStampSettings>({
@@ -141,6 +142,7 @@ export default function App() {
   const baseCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const jsonStateInputRef = useRef<HTMLInputElement | null>(null);
 
   // Video recording/rendering exports
   const [isRecording, setIsRecording] = useState(false);
@@ -215,11 +217,12 @@ export default function App() {
     }
   };
 
-  // Load a file from the media files library
+  // Load a file from the media files library with auto-retry wait for mounting
   const loadLibraryFile = (libFile: LibraryFile) => {
     setFileName(libFile.name);
     setFileType(libFile.type);
     setHasFile(true);
+    setVideoCrop(null);
     setAdjustments(INITIAL_ADJUSTMENTS);
 
     if (libFile.type === 'image') {
@@ -227,27 +230,44 @@ export default function App() {
       img.src = libFile.url;
       img.referrerPolicy = 'no-referrer';
       img.onload = () => {
-        const canvas = baseCanvasRef.current;
-        if (!canvas) return;
+        let attempts = 0;
+        const drawOnCanvas = () => {
+          const canvas = baseCanvasRef.current;
+          if (!canvas) {
+            attempts++;
+            if (attempts < 100) { // Safety bound
+              setTimeout(drawOnCanvas, 30);
+            }
+            return;
+          }
 
-        canvas.width = img.naturalWidth;
-        canvas.height = img.naturalHeight;
-        const ctx = canvas.getContext('2d')!;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(img, 0, 0);
+          canvas.width = img.naturalWidth;
+          canvas.height = img.naturalHeight;
+          const ctx = canvas.getContext('2d')!;
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0);
 
-        setImageDimensions({ width: img.naturalWidth, height: img.naturalHeight });
-        setHistoryStack([]);
-        setCurrentHistoryIndex(-1);
-        
-        // Push initial snapshot
-        pushHistoryState(`Load: ${libFile.name}`, canvas);
+          setImageDimensions({ width: img.naturalWidth, height: img.naturalHeight });
+          setHistoryStack([]);
+          setCurrentHistoryIndex(-1);
+          
+          // Push initial snapshot
+          pushHistoryState(`Load: ${libFile.name}`, canvas);
+        };
+        drawOnCanvas();
       };
     } else {
       // Handle Video
-      setTimeout(() => {
+      let videoAttempts = 0;
+      const setupVideo = () => {
         const video = videoRef.current;
-        if (!video) return;
+        if (!video) {
+          videoAttempts++;
+          if (videoAttempts < 100) {
+            setTimeout(setupVideo, 30);
+          }
+          return;
+        }
 
         video.src = libFile.url;
         video.onloadedmetadata = () => {
@@ -265,18 +285,29 @@ export default function App() {
             enhanceDenoise: 0,
           });
 
-          const canvas = baseCanvasRef.current;
-          if (!canvas) return;
+          let canvasAttempts = 0;
+          const drawVideoFrame = () => {
+            const canvas = baseCanvasRef.current;
+            if (!canvas) {
+              canvasAttempts++;
+              if (canvasAttempts < 100) {
+                setTimeout(drawVideoFrame, 30);
+              }
+              return;
+            }
 
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-          setImageDimensions({ width: video.videoWidth, height: video.videoHeight });
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            setImageDimensions({ width: video.videoWidth, height: video.videoHeight });
 
-          setHistoryStack([]);
-          setCurrentHistoryIndex(-1);
-          pushHistoryState(`Load Video: ${libFile.name}`, canvas);
+            setHistoryStack([]);
+            setCurrentHistoryIndex(-1);
+            pushHistoryState(`Load Video: ${libFile.name}`, canvas);
+          };
+          drawVideoFrame();
         };
-      }, 50);
+      };
+      setupVideo();
     }
   };
 
@@ -353,6 +384,7 @@ export default function App() {
     setFileName('hephaestus_procedural_test_pattern.png');
     setFileType('image');
     setHasFile(true);
+    setVideoCrop(null);
     setAdjustments(INITIAL_ADJUSTMENTS);
 
     setTimeout(() => {
@@ -472,6 +504,7 @@ export default function App() {
     setFileName(name);
     setFileType(type);
     setHasFile(true);
+    setVideoCrop(null);
     setAdjustments(INITIAL_ADJUSTMENTS);
 
     if (type === 'image') {
@@ -620,6 +653,14 @@ export default function App() {
 
   // Crop Comitter
   const handleCommitCrop = (box: { x: number; y: number; w: number; h: number }) => {
+    if (fileType === 'video') {
+      setVideoCrop(box);
+      setImageDimensions({ width: box.w, height: box.h });
+      setActiveTool('select');
+      pushHistoryState('Commit Crop Rectangle');
+      return;
+    }
+
     const canvas = baseCanvasRef.current;
     if (!canvas) return;
 
@@ -816,6 +857,119 @@ export default function App() {
     }
   };
 
+  const handleSaveWorkspaceState = () => {
+    const state = {
+      version: '1.0',
+      fileName,
+      fileType,
+      hasFile,
+      activeTool,
+      adjustments,
+      zoom,
+      pan,
+      imageDimensions,
+      videoCrop,
+      cloneSettings,
+      scaleSettings,
+      videoState,
+      canvasDataUrl: null as string | null
+    };
+
+    if (fileType === 'image' && baseCanvasRef.current) {
+      try {
+        state.canvasDataUrl = baseCanvasRef.current.toDataURL('image/png');
+      } catch (err) {
+        console.warn('Failed to export canvas to JSON state', err);
+      }
+    }
+
+    const jsonString = JSON.stringify(state, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    const safeFileName = fileName ? fileName.replace(/\.[^/.]+$/, "") : "workspace";
+    link.href = url;
+    link.download = `${safeFileName}_state.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleJsonFileLoad = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = JSON.parse(event.target?.result as string);
+        if (data.version !== '1.0') {
+          if (!data.hasOwnProperty('adjustments') || !data.hasOwnProperty('activeTool')) {
+            alert('Invalid workspace state file.');
+            return;
+          }
+        }
+
+        // Restore splash page state to Forge mode
+        setShowInitialSplash(false);
+
+        // Restore state fields
+        if (data.fileName !== undefined) setFileName(data.fileName);
+        if (data.fileType !== undefined) setFileType(data.fileType);
+        if (data.hasFile !== undefined) setHasFile(data.hasFile);
+        if (data.activeTool !== undefined) setActiveTool(data.activeTool);
+        if (data.adjustments !== undefined) setAdjustments(data.adjustments);
+        if (data.zoom !== undefined) setZoom(data.zoom);
+        if (data.pan !== undefined) setPan(data.pan);
+        if (data.imageDimensions !== undefined) setImageDimensions(data.imageDimensions);
+        if (data.videoCrop !== undefined) setVideoCrop(data.videoCrop);
+        if (data.cloneSettings !== undefined) setCloneSettings(data.cloneSettings);
+        if (data.scaleSettings !== undefined) setScaleSettings(data.scaleSettings);
+        if (data.videoState !== undefined) setVideoState(data.videoState);
+
+        // Restore canvas image
+        if (data.fileType === 'image' && data.canvasDataUrl) {
+          const canvas = baseCanvasRef.current;
+          if (canvas) {
+            const ctx = canvas.getContext('2d')!;
+            const img = new Image();
+            img.src = data.canvasDataUrl;
+            img.referrerPolicy = 'no-referrer';
+            img.onload = () => {
+              if (data.imageDimensions) {
+                canvas.width = data.imageDimensions.width;
+                canvas.height = data.imageDimensions.height;
+              } else {
+                canvas.width = img.width;
+                canvas.height = img.height;
+                setImageDimensions({ width: img.width, height: img.height });
+              }
+              ctx.clearRect(0, 0, canvas.width, canvas.height);
+              ctx.drawImage(img, 0, 0);
+              setHistoryStack([]);
+              setCurrentHistoryIndex(-1);
+              pushHistoryState(`Restore State: ${data.fileName || 'unnamed'}`, canvas);
+            };
+          }
+        } else if (data.fileType === 'video') {
+          const found = mediaFiles.find(f => f.name === data.fileName) || PRESETS.find(f => f.name === data.fileName);
+          if (found && videoRef.current) {
+            videoRef.current.src = found.url;
+            videoRef.current.load();
+          }
+        }
+
+      } catch (err) {
+        console.error('Error loading workspace state:', err);
+        alert('Failed to parse workspace state JSON file.');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
   // Keyboard shortcut modifiers (Undo/Redo, Tools toggles)
   useEffect(() => {
     const handleGlobalShortcuts = (e: KeyboardEvent) => {
@@ -877,6 +1031,15 @@ export default function App() {
         }}
         accept="image/*,video/*,.zip"
         multiple
+        className="hidden"
+      />
+
+      {/* Invisible JSON workspace state input */}
+      <input
+        type="file"
+        ref={jsonStateInputRef}
+        onChange={handleJsonFileLoad}
+        accept=".json,application/json"
         className="hidden"
       />
 
@@ -1041,14 +1204,25 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* Standard Procedural Demo Link */}
-                  <button
-                    onClick={handleLoadDemoCanvas}
-                    className="w-full bg-custom-tertiary hover:bg-custom-accent/20 text-custom-primary text-xs px-4 py-3 rounded-xl font-mono flex items-center justify-center space-x-2 border border-custom-color active:scale-95 transition-all shadow-sm group"
-                  >
-                    <Sparkles className="w-3.5 h-3.5 text-custom-accent group-hover:scale-110 transition-transform" />
-                    <span>Bootstrap Calibration Pattern</span>
-                  </button>
+                  {/* Standard Procedural Demo and Resume State Links */}
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <button
+                      onClick={handleLoadDemoCanvas}
+                      className="flex-1 bg-custom-tertiary hover:bg-custom-accent/20 text-custom-primary text-xs px-3 py-3 rounded-xl font-mono flex items-center justify-center space-x-2 border border-custom-color active:scale-95 transition-all shadow-sm group"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-custom-accent group-hover:scale-110 transition-transform" />
+                      <span>Calibration Pattern</span>
+                    </button>
+
+                    <button
+                      onClick={() => jsonStateInputRef.current?.click()}
+                      className="flex-1 bg-[#10b981]/10 hover:bg-[#10b981]/20 text-[#10b981] hover:text-[#10b981] text-xs px-3 py-3 rounded-xl font-mono flex items-center justify-center space-x-2 border border-[#10b981]/20 active:scale-95 transition-all shadow-sm group"
+                      title="Resume a saved workspace session (.json)"
+                    >
+                      <Upload className="w-3.5 h-3.5 text-[#10b981] group-hover:scale-110 transition-transform" />
+                      <span>Resume State (.json)</span>
+                    </button>
+                  </div>
                 </div>
 
               </div>
@@ -1148,6 +1322,8 @@ export default function App() {
               onThemeChange={setTheme}
               showGallery={showGallery}
               onToggleGallery={() => setShowGallery(!showGallery)}
+              onSaveWorkspaceState={handleSaveWorkspaceState}
+              onLoadWorkspaceState={() => jsonStateInputRef.current?.click()}
             />
 
             {/* Core Section Workspace */}
@@ -1188,6 +1364,8 @@ export default function App() {
                   setPan={setPan}
                   imageDimensions={imageDimensions}
                   setImageDimensions={setImageDimensions}
+                  fileName={fileName}
+                  videoCrop={videoCrop}
                 />
 
                 {/* Bottom adjustment drawers */}
@@ -1243,6 +1421,15 @@ export default function App() {
                       >
                         <Upload className="w-3.5 h-3.5" />
                         <span>IMPORT ARTIFACT / ZIP</span>
+                      </button>
+
+                      <button
+                        onClick={() => jsonStateInputRef.current?.click()}
+                        className="w-full py-2 bg-custom-tertiary hover:bg-custom-accent/10 border border-custom-color text-custom-primary hover:text-custom-accent text-xs font-mono font-bold rounded-lg flex items-center justify-center space-x-1.5 transition-all active:scale-95 cursor-pointer"
+                        title="Resume workspace session from a saved .json state file"
+                      >
+                        <Upload className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>RESUME WORKSPACE (.JSON)</span>
                       </button>
                       
                       {mediaFiles.length > 0 && (
