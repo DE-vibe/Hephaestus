@@ -72,12 +72,12 @@ export default function VideoTimeline({
   };
 
   return (
-    <footer className="bg-[#121214] border-t border-[#222226] text-gray-200 p-4 select-none relative z-40 font-sans">
-      <div className="max-w-7xl mx-auto space-y-3.5">
+    <footer className="bg-[#111113]/95 backdrop-blur-xl border-t border-[#222226] text-gray-200 p-4.5 select-none relative z-40 font-sans rounded-t-3xl shadow-[0_-8px_30px_rgba(0,0,0,0.35)]">
+      <div className="max-w-7xl mx-auto space-y-4">
         
         {/* Timeline representation (Track + Scrubbers) */}
-        <div className="space-y-1">
-          <div className="flex justify-between items-center text-[10px] font-mono text-gray-500">
+        <div className="space-y-1.5">
+          <div className="flex justify-between items-center text-[10px] font-mono text-gray-500 px-1">
             <span>Trim In: <strong className="text-gray-300">{formatTime(startTime)}</strong></span>
             <span>Current Playhead: <strong className="text-[#f98435]">{formatTime(currentTime)}</strong></span>
             <span>Trim Out: <strong className="text-gray-300">{formatTime(endTime)}</strong></span>
@@ -85,7 +85,7 @@ export default function VideoTimeline({
 
           <div className="relative h-7 flex items-center">
             {/* Visual background track representing trim area */}
-            <div className="absolute inset-x-0 h-1.5 bg-[#1f1f23] rounded overflow-hidden">
+            <div className="absolute inset-x-0 h-2 bg-[#1f1f23] rounded-full overflow-hidden">
               <div 
                 className="absolute h-full bg-[#e25c24]/20 border-l border-r border-[#e25c24]/40"
                 style={{
@@ -113,7 +113,7 @@ export default function VideoTimeline({
                 step={0.01}
                 value={currentTime}
                 onChange={handleScrub}
-                className="absolute w-full h-1.5 opacity-0 cursor-pointer pointer-events-auto"
+                className="absolute w-full h-2 opacity-0 cursor-pointer pointer-events-auto"
                 title="Playhead Location"
               />
             </div>
@@ -161,7 +161,7 @@ export default function VideoTimeline({
           <div className="flex items-center space-x-2.5">
             <button
               onClick={() => onChangeVideoState({ currentTime: startTime })}
-              className="p-1.5 rounded hover:bg-[#1a1a1c] text-gray-400 hover:text-white transition-colors"
+              className="p-2 rounded-xl hover:bg-[#1a1a1c] text-gray-400 hover:text-white transition-all"
               title="Return to Trim Start"
             >
               <SkipBack className="w-4 h-4" />
@@ -169,7 +169,7 @@ export default function VideoTimeline({
 
             <button
               onClick={() => onStepFrame('backward')}
-              className="p-1.5 rounded hover:bg-[#1a1a1c] text-gray-400 hover:text-white transition-colors"
+              className="p-2 rounded-xl hover:bg-[#1a1a1c] text-gray-400 hover:text-white transition-all"
               title="Previous Frame (Left Arrow)"
             >
               <ChevronLeft className="w-4 h-4" />
@@ -178,7 +178,7 @@ export default function VideoTimeline({
             {/* Play/Pause Button */}
             <button
               onClick={handlePlayPause}
-              className="w-9 h-9 rounded-full bg-[#e25c24] hover:bg-[#f98435] text-white flex items-center justify-center shadow-lg shadow-[#e25c24]/20 transition-all duration-150 active:scale-95"
+              className="w-10 h-10 rounded-full bg-gradient-to-r from-[#e25c24] to-[#f98435] hover:from-[#f98435] hover:to-[#ff945b] text-white flex items-center justify-center shadow-lg shadow-[#e25c24]/25 transition-all duration-150 active:scale-95"
               title={playing ? 'Pause Spacebar' : 'Play Spacebar'}
             >
               {playing ? <Pause className="w-4.5 h-4.5 fill-current" /> : <Play className="w-4.5 h-4.5 fill-current translate-x-0.5" />}
@@ -186,7 +186,7 @@ export default function VideoTimeline({
 
             <button
               onClick={() => onStepFrame('forward')}
-              className="p-1.5 rounded hover:bg-[#1a1a1c] text-gray-400 hover:text-white transition-colors"
+              className="p-2 rounded-xl hover:bg-[#1a1a1c] text-gray-400 hover:text-white transition-all"
               title="Next Frame (Right Arrow)"
             >
               <ChevronRight className="w-4 h-4" />
@@ -195,7 +195,7 @@ export default function VideoTimeline({
 
           {/* Timing indicators */}
           <div className="flex items-center space-x-3 text-xs font-mono">
-            <div className="bg-[#17171a] border border-[#222226] px-3 py-1.5 rounded flex items-center space-x-2 text-gray-300">
+            <div className="bg-[#17171a] border border-[#222226] px-3.5 py-1.5 rounded-xl flex items-center space-x-2 text-gray-300 shadow-inner">
               <Film className="w-3.5 h-3.5 text-orange-400" />
               <span>
                 {formatTime(currentTime)} / {formatTime(duration)}
@@ -210,14 +210,14 @@ export default function VideoTimeline({
           {/* Export video with recording visual overlay */}
           <div>
             {isRecording ? (
-              <div className="flex items-center space-x-3 bg-red-950/40 border border-red-500/30 px-3 py-1.5 rounded text-xs">
+              <div className="flex items-center space-x-3 bg-red-950/40 border border-red-500/30 px-3.5 py-2 rounded-xl text-xs">
                 <span className="w-2 h-2 bg-red-500 rounded-full animate-ping" />
                 <span className="font-mono text-red-200">Processing Render: {recordingProgress}%</span>
               </div>
             ) : (
               <button
                 onClick={onExportVideo}
-                className="bg-[#1c1c1f] hover:bg-zinc-800 border border-[#2e2e33] text-gray-200 font-medium text-xs px-3 py-1.5 rounded-lg flex items-center space-x-2 transition-all"
+                className="bg-[#1c1c1f] hover:bg-zinc-800 border border-[#2e2e33] text-gray-200 font-bold text-xs px-4 py-2 rounded-xl flex items-center space-x-2 transition-all active:scale-[0.98] shadow-md hover:shadow-lg"
                 title="Saves video with active filters applied locally"
               >
                 <Scissors className="w-3.5 h-3.5 text-emerald-400" />

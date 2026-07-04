@@ -55,10 +55,10 @@ export default function SplashPage({ onComplete }: SplashPageProps) {
       />
 
       {/* Main cinematic text container */}
-      <div className="flex flex-col items-center justify-center space-y-8 z-10 max-w-4xl">
+      <div className="flex flex-col items-center justify-center space-y-6 sm:space-y-8 z-10 max-w-4xl px-4">
         
         {/* English Title Stagger: HEPHAESTUS (Now bigger and on top) */}
-        <div className="flex items-center justify-center space-x-2 sm:space-x-4 md:space-x-6">
+        <div className="flex items-center justify-center space-x-0.5 xs:space-x-1 sm:space-x-3 md:space-x-4">
           {englishSubtitle.map((char, index) => (
             <motion.span
               key={`eng-${index}`}
@@ -84,7 +84,7 @@ export default function SplashPage({ onComplete }: SplashPageProps) {
                 delay: index * 0.1,
                 ease: "easeOut"
               }}
-              className="text-4xl sm:text-6xl md:text-8xl font-extrabold font-serif text-white select-none tracking-normal"
+              className="text-2xl xs:text-3xl sm:text-5xl md:text-7xl lg:text-8xl font-extrabold font-serif text-white select-none tracking-normal"
             >
               {char}
             </motion.span>
@@ -100,7 +100,7 @@ export default function SplashPage({ onComplete }: SplashPageProps) {
         />
 
         {/* Greek Font Name: Η Φ Α Ι Σ Τ Ο Σ (Now smaller, under the English) */}
-        <div className="flex items-center justify-center space-x-3 sm:space-x-5">
+        <div className="flex items-center justify-center space-x-1 sm:space-x-3 md:space-x-4">
           {greekLetters.map((char, index) => (
             <motion.span
               key={`greek-${index}`}
@@ -111,7 +111,7 @@ export default function SplashPage({ onComplete }: SplashPageProps) {
                 delay: 1.2 + (index * 0.08),
                 ease: "easeOut"
               }}
-              className="text-lg sm:text-xl md:text-2xl font-serif text-[#e25c24] uppercase tracking-[0.2em]"
+              className="text-xs xs:text-sm sm:text-lg md:text-2xl font-serif text-[#e25c24] uppercase tracking-[0.1em] sm:tracking-[0.2em]"
             >
               {char}
             </motion.span>
@@ -123,7 +123,7 @@ export default function SplashPage({ onComplete }: SplashPageProps) {
           initial={{ opacity: 0, y: 5 }}
           animate={{ opacity: 0.4, y: 0 }}
           transition={{ delay: 2.3, duration: 1 }}
-          className="text-[9px] sm:text-[10px] font-mono tracking-[0.3em] uppercase text-zinc-400 text-center"
+          className="text-[8px] xs:text-[9px] sm:text-[10px] font-mono tracking-[0.2em] sm:tracking-[0.3em] uppercase text-zinc-400 text-center leading-normal"
         >
           THE ARTISAN'S DIGITAL MEDIA SUITE
         </motion.p>
@@ -133,11 +133,11 @@ export default function SplashPage({ onComplete }: SplashPageProps) {
       {/* Skip/Enter hint */}
       <motion.div
         initial={{ opacity: 0 }}
-        animate={{ opacity: 0.25 }}
+        animate={{ opacity: 0.35 }}
         transition={{ delay: 3, duration: 0.8 }}
-        className="absolute bottom-12 text-[10px] font-mono tracking-widest text-zinc-500 uppercase cursor-pointer hover:text-[#e25c24] hover:opacity-80 transition-colors"
+        className="absolute bottom-10 sm:bottom-12 text-[9px] xs:text-[10px] font-mono tracking-widest text-zinc-500 uppercase cursor-pointer hover:text-[#e25c24] hover:opacity-80 transition-colors px-4 text-center leading-normal"
       >
-        Click anywhere to enter the forge immediately
+        Tap or click anywhere to enter the forge immediately
       </motion.div>
     </div>
   );

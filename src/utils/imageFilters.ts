@@ -70,63 +70,121 @@ export function applyAdjustments(
   saturation: number,
   redChannel: number = 0,
   greenChannel: number = 0,
-  blueChannel: number = 0
+  blueChannel: number = 0,
+  gamma: number = 100,
+  vignette: number = 0,
+  pixelate: number = 0,
+  invert: boolean = false
 ) {
   const src = srcData.data;
   const dest = destData.data;
   const len = src.length;
+  const w = srcData.width;
+  const h = srcData.height;
 
   // Contrast factor
   const contrastFactor = (259 * (contrast + 255)) / (255 * (259 - contrast));
 
   for (let i = 0; i < len; i += 4) {
-    let r = src[i];
-    let g = src[i + 1];
-    let b = src[i + 2];
-    const a = src[i + 3];
+    let r, g, b, a;
+    
+    // 1. Pixelate (Mosaic block lookup)
+    if (pixelate > 1) {
+      const pxIdx = Math.floor(i / 4);
+      const x = pxIdx % w;
+      const y = Math.floor(pxIdx / w);
+      
+      const blockX = Math.floor(x / pixelate) * pixelate;
+      const blockY = Math.floor(y / pixelate) * pixelate;
+      
+      const srcOff = (blockY * w + blockX) * 4;
+      r = src[srcOff];
+      g = src[srcOff + 1];
+      b = src[srcOff + 2];
+      a = src[srcOff + 3];
+    } else {
+      r = src[i];
+      g = src[i + 1];
+      b = src[i + 2];
+      a = src[i + 3];
+    }
 
-    // 1. Brightness
+    // 2. Invert colors
+    if (invert) {
+      r = 255 - r;
+      g = 255 - g;
+      b = 255 - b;
+    }
+
+    // 3. Brightness
     if (brightness !== 0) {
       r += brightness;
       g += brightness;
       b += brightness;
     }
 
-    // 2. Contrast
+    // 4. Contrast
     if (contrast !== 0) {
       r = contrastFactor * (r - 128) + 128;
       g = contrastFactor * (g - 128) + 128;
       b = contrastFactor * (b - 128) + 128;
     }
 
-    // 3. Manual Channel Offsets (Color Grading / White Balance Calibration)
+    // 5. Manual Channel Offsets (Color Grading / White Balance Calibration)
     if (redChannel !== 0) r += redChannel;
     if (greenChannel !== 0) g += greenChannel;
     if (blueChannel !== 0) b += blueChannel;
+
+    // 6. Gamma Correction (maps 10..300 to 0.1..3.0 exponent)
+    if (gamma !== 100) {
+      const gammaVal = gamma / 100;
+      r = Math.pow(Math.max(0, r) / 255, gammaVal) * 255;
+      g = Math.pow(Math.max(0, g) / 255, gammaVal) * 255;
+      b = Math.pow(Math.max(0, b) / 255, gammaVal) * 255;
+    }
 
     // Clip RGB
     r = r < 0 ? 0 : r > 255 ? 255 : r;
     g = g < 0 ? 0 : g > 255 ? 255 : g;
     b = b < 0 ? 0 : b > 255 ? 255 : b;
 
-    // 4. Hue & Saturation
+    // 7. Vignette Effect
+    if (vignette > 0) {
+      const pxIdx = Math.floor(i / 4);
+      const x = pxIdx % w;
+      const y = Math.floor(pxIdx / w);
+      
+      const dx = x - w / 2;
+      const dy = y - h / 2;
+      const maxDist = Math.sqrt((w / 2) * (w / 2) + (h / 2) * (h / 2));
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const normDist = dist / maxDist; // 0 to 1
+      
+      // Cosine falloff for smooth darkening
+      const vignetteFactor = 1 - (normDist * normDist * (vignette / 100));
+      r *= vignetteFactor;
+      g *= vignetteFactor;
+      b *= vignetteFactor;
+    }
+
+    // 8. Hue & Saturation
     if (hue !== 0 || saturation !== 0) {
-      const [h, s, l] = rgbToHsl(r, g, b);
-      let newH = h + hue;
+      const [hVal, sVal, lVal] = rgbToHsl(r, g, b);
+      let newH = hVal + hue;
       if (newH < 0) newH += 360;
       if (newH >= 360) newH -= 360;
 
-      let newS = s + saturation;
+      let newS = sVal + saturation;
       newS = newS < 0 ? 0 : newS > 100 ? 100 : newS;
 
-      const [nr, ng, nb] = hslToRgb(newH, newS, l);
+      const [nr, ng, nb] = hslToRgb(newH, newS, lVal);
       dest[i] = nr;
       dest[i + 1] = ng;
       dest[i + 2] = nb;
     } else {
-      dest[i] = r;
-      dest[i + 1] = g;
-      dest[i + 2] = b;
+      dest[i] = Math.round(r);
+      dest[i + 1] = Math.round(g);
+      dest[i + 2] = Math.round(b);
     }
     dest[i + 3] = a;
   }
@@ -555,17 +613,67 @@ export function applyHealBrush(
   destY: number,
   radius: number
 ) {
-  // Grab source and destination image datas
-  const srcData = ctx.getImageData(srcX - radius, srcY - radius, radius * 2, radius * 2);
-  const destData = ctx.getImageData(destX - radius, destY - radius, radius * 2, radius * 2);
+  const w = ctx.canvas.width;
+  const h = ctx.canvas.height;
+  const side = Math.round(radius * 2);
+  radius = Math.round(radius);
 
-  const src = srcData.data;
-  const dest = destData.data;
-  const side = radius * 2;
+  // Source Box Clipping
+  const sLeft = Math.round(srcX - radius);
+  const sTop = Math.round(srcY - radius);
+  const sClipLeft = Math.max(0, sLeft);
+  const sClipTop = Math.max(0, sTop);
+  const sClipRight = Math.min(w, sLeft + side);
+  const sClipBottom = Math.min(h, sTop + side);
+  const sClipW = sClipRight - sClipLeft;
+  const sClipH = sClipBottom - sClipTop;
 
-  // Let's perform a smooth feathering blend of the texture
-  // We want to preserve the destination's background lighting (luminance / color trend)
-  // while grafting the source's high-frequency details (texture) onto the destination.
+  // Dest Box Clipping
+  const dLeft = Math.round(destX - radius);
+  const dTop = Math.round(destY - radius);
+  const dClipLeft = Math.max(0, dLeft);
+  const dClipTop = Math.max(0, dTop);
+  const dClipRight = Math.min(w, dLeft + side);
+  const dClipBottom = Math.min(h, dTop + side);
+  const dClipW = dClipRight - dClipLeft;
+  const dClipH = dClipBottom - dClipTop;
+
+  if (sClipW <= 0 || sClipH <= 0 || dClipW <= 0 || dClipH <= 0) return;
+
+  const sData = ctx.getImageData(sClipLeft, sClipTop, sClipW, sClipH);
+  const dData = ctx.getImageData(dClipLeft, dClipTop, dClipW, dClipH);
+
+  const sPixels = sData.data;
+  const dPixels = dData.data;
+
+  // Let's create virtual src and dest arrays of size (side * side * 4) representing clamped pixels
+  const src = new Uint8ClampedArray(side * side * 4);
+  const dest = new Uint8ClampedArray(side * side * 4);
+
+  for (let y = 0; y < side; y++) {
+    for (let x = 0; x < side; x++) {
+      const idx = (y * side + x) * 4;
+
+      // Source pixel
+      const sCanvasX = Math.max(sClipLeft, Math.min(sClipRight - 1, sLeft + x));
+      const sCanvasY = Math.max(sClipTop, Math.min(sClipBottom - 1, sTop + y));
+      const sOff = ((sCanvasY - sClipTop) * sClipW + (sCanvasX - sClipLeft)) * 4;
+      src[idx] = sPixels[sOff];
+      src[idx + 1] = sPixels[sOff + 1];
+      src[idx + 2] = sPixels[sOff + 2];
+      src[idx + 3] = sPixels[sOff + 3];
+
+      // Dest pixel
+      const dCanvasX = Math.max(dClipLeft, Math.min(dClipRight - 1, dLeft + x));
+      const dCanvasY = Math.max(dClipTop, Math.min(dClipBottom - 1, dTop + y));
+      const dOff = ((dCanvasY - dClipTop) * dClipW + (dCanvasX - dClipLeft)) * 4;
+      dest[idx] = dPixels[dOff];
+      dest[idx + 1] = dPixels[dOff + 1];
+      dest[idx + 2] = dPixels[dOff + 2];
+      dest[idx + 3] = dPixels[dOff + 3];
+    }
+  }
+
   // 1. Calculate average lighting/color of source and destination margins
   let srcRSum = 0, srcGSum = 0, srcBSum = 0;
   let destRSum = 0, destGSum = 0, destBSum = 0;
@@ -631,6 +739,27 @@ export function applyHealBrush(
     }
   }
 
-  // Draw back to context
-  ctx.putImageData(destData, destX - radius, destY - radius);
+  // Draw back to context, clipping writes specifically to canvas bounds
+  const outData = ctx.createImageData(dClipW, dClipH);
+  const outPixels = outData.data;
+
+  for (let cy = 0; cy < dClipH; cy++) {
+    const canvasY = dClipTop + cy;
+    const destGridY = canvasY - dTop;
+
+    for (let cx = 0; cx < dClipW; cx++) {
+      const canvasX = dClipLeft + cx;
+      const destGridX = canvasX - dLeft;
+
+      const destGridOff = (destGridY * side + destGridX) * 4;
+      const outOff = (cy * dClipW + cx) * 4;
+
+      outPixels[outOff] = dest[destGridOff];
+      outPixels[outOff + 1] = dest[destGridOff + 1];
+      outPixels[outOff + 2] = dest[destGridOff + 2];
+      outPixels[outOff + 3] = dest[destGridOff + 3];
+    }
+  }
+
+  ctx.putImageData(outData, dClipLeft, dClipTop);
 }

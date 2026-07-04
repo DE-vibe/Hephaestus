@@ -78,3 +78,70 @@
   background-size: 16px 8px;
   background-repeat: repeat-x;
 }
+
+/* Elegant Shiny Glassmorphism */
+.glass-panel {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+.glass-panel-light {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.3) 100%);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 8px 32px 0 rgba(139, 90, 43, 0.06);
+}
+
+/* Super Shiny highlight overlays */
+.shiny-gloss {
+  position: relative;
+  overflow: hidden;
+}
+
+.shiny-gloss::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    to bottom right,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0) 40%,
+    rgba(255, 255, 255, 0.03) 50%,
+    rgba(255, 255, 255, 0) 60%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  transform: rotate(30deg);
+  transition: transform 0.5s ease;
+  pointer-events: none;
+}
+
+.shiny-gloss:hover::after {
+  transform: translate(15%, 15%) rotate(30deg);
+}
+
+/* Elegant Drop Shadows & Glowing Accents */
+.shiny-glow-gold {
+  box-shadow: 0 0 20px rgba(140, 115, 85, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.shiny-glow-orange {
+  box-shadow: 0 0 25px rgba(226, 92, 36, 0.12), inset 0 1px 1px rgba(255, 255, 255, 0.1);
+}
+
+.shiny-border-glow {
+  border-color: rgba(226, 92, 36, 0.3);
+  box-shadow: 0 0 12px rgba(226, 92, 36, 0.1);
+}
+
+/* Global transitions and focus styling */
+* {
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, box-shadow;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+

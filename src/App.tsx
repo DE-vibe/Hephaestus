@@ -132,6 +132,7 @@ export default function App() {
     enhanceContrast: false,
     enhanceSharpen: 0,
     enhanceDenoise: 0,
+    playbackRate: 1.0,
   });
 
   // History Undo/Redo System
@@ -283,6 +284,7 @@ export default function App() {
             enhanceContrast: false,
             enhanceSharpen: 0,
             enhanceDenoise: 0,
+            playbackRate: 1.0,
           });
 
           let canvasAttempts = 0;
@@ -551,6 +553,7 @@ export default function App() {
             enhanceContrast: false,
             enhanceSharpen: 0,
             enhanceDenoise: 0,
+            playbackRate: 1.0,
           });
 
           const canvas = baseCanvasRef.current;
@@ -995,7 +998,7 @@ export default function App() {
         if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'SELECT') {
           return;
         }
-        if (e.key === 'h' || e.key === 'H') {
+        if (e.key === 'h' || e.key === 'H' || e.key === 'v' || e.key === 'V') {
           setActiveTool('select');
         }
         if (e.key === 'c' || e.key === 'C') {
@@ -1006,6 +1009,9 @@ export default function App() {
         }
         if (e.key === 'j' || e.key === 'J') {
           setActiveTool('heal');
+        }
+        if (e.key === 'i' || e.key === 'I') {
+          setActiveTool('color_picker');
         }
         if (e.key === 'Escape') {
           setActiveTool('select');
@@ -1086,15 +1092,15 @@ export default function App() {
             </div>
 
             {/* Floating Top Bar for Theme Toggle inside landing page */}
-            <div className="w-full max-w-4xl flex justify-end mb-4 relative z-20">
-              <div className="flex items-center space-x-2 bg-custom-secondary border border-custom-color rounded-lg p-1 shadow-sm">
-                <span className="text-[10px] font-mono text-custom-secondary uppercase tracking-wider px-2">Forge Aesthetics:</span>
+            <div className="w-full max-w-4xl flex justify-end mb-6 relative z-20">
+              <div className="flex items-center space-x-2 bg-custom-secondary/90 border border-custom-color/80 rounded-2xl p-1 shadow-md backdrop-blur-md">
+                <span className="text-[10px] font-mono text-custom-secondary uppercase tracking-[0.15em] px-3 font-semibold">Forge Aesthetics:</span>
                 <button
                   onClick={() => setTheme('light')}
-                  className={`px-3 py-1.5 rounded-md transition-all text-xs font-mono font-bold flex items-center space-x-1 ${
+                  className={`px-3.5 py-2 rounded-xl transition-all text-xs font-mono font-bold flex items-center space-x-1.5 ${
                     theme === 'light' 
-                      ? 'bg-custom-accent text-white shadow' 
-                      : 'hover:text-custom-primary text-custom-secondary'
+                      ? 'bg-gradient-to-r from-[#e25c24] to-[#f98435] text-white shadow-md' 
+                      : 'hover:text-custom-primary text-custom-secondary hover:bg-custom-tertiary/60'
                   }`}
                 >
                   <Sun className="w-3.5 h-3.5" />
@@ -1102,10 +1108,10 @@ export default function App() {
                 </button>
                 <button
                   onClick={() => setTheme('dark')}
-                  className={`px-3 py-1.5 rounded-md transition-all text-xs font-mono font-bold flex items-center space-x-1 ${
+                  className={`px-3.5 py-2 rounded-xl transition-all text-xs font-mono font-bold flex items-center space-x-1.5 ${
                     theme === 'dark' 
-                      ? 'bg-custom-accent text-white shadow' 
-                      : 'hover:text-custom-primary text-custom-secondary'
+                      ? 'bg-gradient-to-r from-[#e25c24] to-[#f98435] text-white shadow-md' 
+                      : 'hover:text-custom-primary text-custom-secondary hover:bg-custom-tertiary/60'
                   }`}
                 >
                   <Moon className="w-3.5 h-3.5" />
@@ -1113,10 +1119,10 @@ export default function App() {
                 </button>
                 <button
                   onClick={() => setTheme('phone')}
-                  className={`px-3 py-1.5 rounded-md transition-all text-xs font-mono font-bold flex items-center space-x-1 ${
+                  className={`px-3.5 py-2 rounded-xl transition-all text-xs font-mono font-bold flex items-center space-x-1.5 ${
                     theme === 'phone' 
-                      ? 'bg-custom-accent text-white shadow' 
-                      : 'hover:text-custom-primary text-custom-secondary'
+                      ? 'bg-gradient-to-r from-[#e25c24] to-[#f98435] text-white shadow-md' 
+                      : 'hover:text-custom-primary text-custom-secondary hover:bg-custom-tertiary/60'
                   }`}
                 >
                   <Smartphone className="w-3.5 h-3.5" />
@@ -1125,90 +1131,111 @@ export default function App() {
               </div>
             </div>
 
-            <div className="max-w-4xl w-full space-y-10 relative z-10 pb-16">
+            <div className="max-w-4xl w-full space-y-8 sm:space-y-12 relative z-10 pb-12 sm:pb-16">
               
               {/* Header Branding */}
               <div className="flex flex-col items-center space-y-4">
-                <div className="w-24 h-24 bg-gradient-to-tr from-custom-accent to-custom-gilded rounded-3xl flex items-center justify-center shadow-lg relative overflow-hidden group">
+                <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gradient-to-tr from-custom-accent to-[#ff8c42] rounded-[24px] sm:rounded-[32px] flex items-center justify-center shadow-xl shadow-[#e25c24]/15 relative overflow-hidden group shiny-gloss">
                   <div className="absolute inset-0 opacity-15 bg-[linear-gradient(to_right,#808080_1px,transparent_1px),linear-gradient(to_bottom,#808080_1px,transparent_1px)] bg-[size:6px_6px]" />
-                  <Sparkles className="w-12 h-12 text-white animate-pulse" />
+                  <Sparkles className="w-10 h-10 sm:w-12 sm:h-12 text-white animate-pulse" />
                 </div>
                 
-                <h1 className="text-5xl font-extrabold tracking-[0.25em] font-serif text-center mt-2 bg-gradient-to-b from-custom-primary to-custom-accent bg-clip-text text-transparent">
+                <h1 className="text-3xl xs:text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-[0.15em] sm:tracking-[0.25em] font-serif text-center mt-2 bg-gradient-to-b from-custom-primary to-custom-accent bg-clip-text text-transparent">
                   HEPHAESTUS
                 </h1>
                 
                 {/* Meander pattern line beneath the title */}
-                <div className="w-64 h-2.5 greek-pattern opacity-60 rounded" />
+                <div className="w-44 sm:w-64 h-2 sm:h-2.5 greek-pattern opacity-60 rounded" />
                 
-                <p className="text-custom-secondary font-sans text-xs sm:text-sm max-w-xl text-center leading-relaxed font-medium">
+                <p className="text-custom-secondary font-sans text-xs sm:text-sm max-w-xl text-center leading-relaxed font-medium px-2">
                   "Enter the divine blacksmith shop of Mount Olympus. Forge, remaster, dither, and reconstruct your images & video clips frame-by-frame with surgical mathematical precision. Zero AI illusions. Pure manual pixel artistry."
                 </p>
               </div>
 
               {/* Main Interactive Row: Drag Drop Box & Preset Selection */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-stretch">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 items-stretch">
                 
                 {/* Drag and Drop Box */}
                 <div className="flex flex-col justify-between p-1">
-                  <div
+                  <motion.div
                     onDragOver={handleDragOver}
                     onDrop={handleDrop}
                     onClick={() => fileInputRef.current?.click()}
-                    className="flex-1 border-2 border-custom-gilded/30 border-dashed hover:border-custom-accent bg-custom-secondary/40 backdrop-blur-sm rounded-2xl p-8 cursor-pointer transition-all hover:bg-custom-secondary/80 group shadow-lg flex flex-col items-center justify-center space-y-6"
+                    initial={{ opacity: 0, y: 30 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    whileHover={{ 
+                      scale: 1.01,
+                      borderColor: '#e25c24',
+                      boxShadow: '0 20px 50px rgba(226,92,36,0.18)'
+                    }}
+                    transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
+                    className="flex-1 border-2 border-dashed border-[#e25c24]/20 bg-custom-secondary/45 hover:bg-custom-secondary/80 backdrop-blur-sm rounded-[24px] sm:rounded-[32px] p-6 sm:p-10 cursor-pointer shadow-[0_12px_40px_rgba(0,0,0,0.15)] group flex flex-col items-center justify-center space-y-5 sm:space-y-6 transition-colors duration-300"
                   >
-                    <div className="w-16 h-16 bg-custom-tertiary rounded-full flex items-center justify-center border border-custom-color group-hover:border-custom-accent/50 transition-colors shadow-inner">
-                      <Upload className="w-7 h-7 text-custom-secondary group-hover:text-custom-accent transition-colors" />
+                    <div className="w-14 h-14 sm:w-18 sm:h-18 bg-custom-tertiary rounded-full flex items-center justify-center border border-custom-color group-hover:border-custom-accent/40 group-hover:scale-105 transition-all shadow-inner">
+                      <Upload className="w-6 sm:w-8 h-6 sm:h-8 text-custom-secondary group-hover:text-custom-accent transition-colors animate-bounce" />
                     </div>
                     <div className="text-center">
-                      <p className="text-base font-bold text-custom-primary">Drag & drop your file here</p>
-                      <p className="text-xs text-custom-secondary mt-1">Supports images (.png, .jpg) and video clips (.mp4, .mov)</p>
+                      <p className="text-sm sm:text-base font-bold text-custom-primary">Drag & drop your file here</p>
+                      <p className="text-[10px] sm:text-xs text-custom-secondary mt-1">Supports images (.png, .jpg) and video clips (.mp4, .mov)</p>
                     </div>
-                    <span className="text-xs font-semibold text-white bg-custom-accent hover:bg-custom-accent/95 px-5 py-2.5 rounded-lg font-mono transition-all shadow-md active:scale-95">
+                    <span className="text-[11px] sm:text-xs font-semibold text-white bg-gradient-to-r from-custom-accent to-[#f98435] hover:from-[#f98435] hover:to-[#ff945b] px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl font-mono transition-all shadow-md active:scale-95">
                       Or Browse Local Directory
                     </span>
-                  </div>
+                  </motion.div>
                 </div>
 
                 {/* Classical Preset Masterpieces Column */}
-                <div className="bg-custom-secondary/40 border border-custom-color rounded-2xl p-6 flex flex-col justify-between space-y-4">
+                <motion.div
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  whileHover={{ 
+                    scale: 1.01,
+                    borderColor: 'rgba(226,92,36,0.35)'
+                  }}
+                  transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
+                  className="bg-custom-secondary/45 border border-custom-color rounded-[24px] sm:rounded-[32px] p-5 sm:p-8 flex flex-col justify-between space-y-5 shadow-xl shadow-black/10 transition-colors duration-300"
+                >
                   <div>
-                    <h3 className="text-sm font-bold font-serif tracking-widest text-custom-primary uppercase mb-1">
-                      🏛️ Classical Masterpieces
+                    <h3 className="text-xs sm:text-sm font-bold font-serif tracking-widest text-custom-primary uppercase mb-1 flex items-center space-x-2">
+                      <span>🏛️</span>
+                      <span>Classical Masterpieces</span>
                     </h3>
-                    <p className="text-xs text-custom-secondary mb-4">
+                    <p className="text-[11px] sm:text-xs text-custom-secondary mb-4">
                       Select an ancient preset artifact to load the canvas instantly:
                     </p>
 
                     <div className="space-y-2 max-h-[190px] overflow-y-auto pr-1">
-                      {PRESETS.map((preset) => (
-                        <button
+                      {PRESETS.map((preset, idx) => (
+                        <motion.button
                           key={preset.name}
+                          initial={{ opacity: 0, x: -12 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: 0.25 + idx * 0.08, duration: 0.25, ease: 'easeOut' }}
                           onClick={() => handleLoadPresetURL(preset.url, preset.type, preset.name)}
-                          className="w-full text-left p-2 bg-custom-tertiary hover:bg-custom-accent/10 border border-custom-color hover:border-custom-accent/30 rounded-xl flex items-center space-x-3 group transition-all"
+                          className="w-full text-left p-2 sm:p-2.5 bg-custom-tertiary/75 hover:bg-custom-accent/15 border border-custom-color hover:border-custom-accent/45 rounded-2xl flex items-center space-x-2.5 sm:space-x-3.5 group transition-all duration-200 shadow-sm hover:shadow-md"
                         >
-                          <span className="text-xl bg-custom-secondary p-1 rounded-lg border border-custom-color">{preset.icon}</span>
+                          <span className="text-lg sm:text-xl bg-custom-secondary p-1 sm:p-1.5 rounded-xl border border-custom-color/80">{preset.icon}</span>
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs font-bold text-custom-primary truncate group-hover:text-custom-accent transition-colors">
+                            <p className="text-[11px] sm:text-xs font-bold text-custom-primary truncate group-hover:text-custom-accent transition-colors">
                               {preset.name}
                             </p>
-                            <p className="text-[10px] text-custom-secondary truncate">
+                            <p className="text-[9px] sm:text-[10px] text-custom-secondary truncate">
                               {preset.desc}
                             </p>
                           </div>
-                          <span className="text-[9px] bg-custom-secondary group-hover:bg-custom-accent group-hover:text-white border border-custom-color px-2 py-0.5 rounded text-custom-secondary font-mono">
+                          <span className="text-[8px] sm:text-[9px] bg-custom-secondary group-hover:bg-custom-accent group-hover:text-white border border-custom-color px-1.5 sm:px-2 py-0.5 rounded-lg text-custom-secondary font-mono transition-colors">
                             {preset.type.toUpperCase()}
                           </span>
-                        </button>
+                        </motion.button>
                       ))}
                     </div>
                   </div>
 
                   {/* Standard Procedural Demo and Resume State Links */}
-                  <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3">
                     <button
                       onClick={handleLoadDemoCanvas}
-                      className="flex-1 bg-custom-tertiary hover:bg-custom-accent/20 text-custom-primary text-xs px-3 py-3 rounded-xl font-mono flex items-center justify-center space-x-2 border border-custom-color active:scale-95 transition-all shadow-sm group"
+                      className="flex-1 bg-custom-tertiary/80 hover:bg-custom-accent/15 text-custom-primary text-[11px] sm:text-xs px-3 py-3 rounded-2xl font-mono flex items-center justify-center space-x-2 border border-custom-color active:scale-95 transition-all shadow-sm group font-bold"
                     >
                       <Sparkles className="w-3.5 h-3.5 text-custom-accent group-hover:scale-110 transition-transform" />
                       <span>Calibration Pattern</span>
@@ -1216,14 +1243,14 @@ export default function App() {
 
                     <button
                       onClick={() => jsonStateInputRef.current?.click()}
-                      className="flex-1 bg-[#10b981]/10 hover:bg-[#10b981]/20 text-[#10b981] hover:text-[#10b981] text-xs px-3 py-3 rounded-xl font-mono flex items-center justify-center space-x-2 border border-[#10b981]/20 active:scale-95 transition-all shadow-sm group"
+                      className="flex-1 bg-[#10b981]/10 hover:bg-[#10b981]/15 text-[#10b981] text-[11px] sm:text-xs px-3 py-3 rounded-2xl font-mono flex items-center justify-center space-x-2 border border-[#10b981]/25 active:scale-95 transition-all shadow-sm group font-bold"
                       title="Resume a saved workspace session (.json)"
                     >
                       <Upload className="w-3.5 h-3.5 text-[#10b981] group-hover:scale-110 transition-transform" />
                       <span>Resume State (.json)</span>
                     </button>
                   </div>
-                </div>
+                </motion.div>
 
               </div>
 
@@ -1238,41 +1265,92 @@ export default function App() {
                 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   
-                  <div className="bg-custom-secondary/30 border border-custom-color rounded-xl p-5 space-y-3 shadow-sm hover:border-custom-accent/30 transition-all">
-                    <div className="w-10 h-10 bg-custom-accent/10 rounded-lg flex items-center justify-center text-custom-accent">
-                      <ImageIcon className="w-5 h-5" />
+                  <motion.div
+                    initial={{ opacity: 0, y: 45, scale: 0.96 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    whileHover={{ 
+                      y: -6,
+                      scale: 1.02,
+                      borderColor: 'rgba(226,92,36,0.4)',
+                      boxShadow: '0 20px 40px rgba(0,0,0,0.25)'
+                    }}
+                    transition={{ duration: 0.85, ease: [0.16, 1, 0.3, 1], delay: 0.3 }}
+                    className="bg-custom-secondary/45 border border-custom-color rounded-2xl p-6 space-y-4 shadow-md relative overflow-hidden group transition-colors duration-300"
+                  >
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-custom-accent/2 rounded-full blur-xl pointer-events-none" />
+                    <div className="w-11 h-11 bg-custom-accent/10 rounded-xl flex items-center justify-center text-custom-accent group-hover:scale-110 transition-transform">
+                      <ImageIcon className="w-5.5 h-5.5" />
                     </div>
-                    <h3 className="text-sm font-bold font-serif tracking-wider uppercase text-custom-primary">
+                    <motion.h3 
+                      initial={{ opacity: 0, x: -12 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: 0.45 }}
+                      className="text-sm font-bold font-serif tracking-wider uppercase text-custom-primary"
+                    >
                       1. Color Depth Sanding
-                    </h3>
+                    </motion.h3>
                     <p className="text-xs text-custom-secondary leading-relaxed">
                       Sand pixels down to true 16-bit, 8-bit, 4-bit, or 1-bit monochrome formats. Apply <strong>Floyd-Steinberg error diffusion</strong> or <strong>Ordered Bayer pattern</strong> dithering matrices to construct spatial shades.
                     </p>
-                  </div>
+                  </motion.div>
 
-                  <div className="bg-custom-secondary/30 border border-custom-color rounded-xl p-5 space-y-3 shadow-sm hover:border-custom-accent/30 transition-all">
-                    <div className="w-10 h-10 bg-custom-accent/10 rounded-lg flex items-center justify-center text-custom-accent">
-                      <Sparkles className="w-5 h-5" />
+                  <motion.div
+                    initial={{ opacity: 0, y: 45, scale: 0.96 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    whileHover={{ 
+                      y: -6,
+                      scale: 1.02,
+                      borderColor: 'rgba(226,92,36,0.4)',
+                      boxShadow: '0 20px 40px rgba(0,0,0,0.25)'
+                    }}
+                    transition={{ duration: 0.85, ease: [0.16, 1, 0.3, 1], delay: 0.4 }}
+                    className="bg-custom-secondary/45 border border-custom-color rounded-2xl p-6 space-y-4 shadow-md relative overflow-hidden group transition-colors duration-300"
+                  >
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-custom-accent/2 rounded-full blur-xl pointer-events-none" />
+                    <div className="w-11 h-11 bg-custom-accent/10 rounded-xl flex items-center justify-center text-custom-accent group-hover:scale-110 transition-transform">
+                      <Sparkles className="w-5.5 h-5.5" />
                     </div>
-                    <h3 className="text-sm font-bold font-serif tracking-wider uppercase text-custom-primary">
+                    <motion.h3 
+                      initial={{ opacity: 0, x: -12 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: 0.55 }}
+                      className="text-sm font-bold font-serif tracking-wider uppercase text-custom-primary"
+                    >
                       2. Manual Grafting & Healing
-                    </h3>
+                    </motion.h3>
                     <p className="text-xs text-custom-secondary leading-relaxed">
                       Manually graft and clone pixels over canvas coordinates. The healing brush integrates a <strong>mathematical luminance blending solver</strong> to seamlessly heal dust, hairs, scratches, or spots while matching destination lighting.
                     </p>
-                  </div>
+                  </motion.div>
 
-                  <div className="bg-custom-secondary/30 border border-custom-color rounded-xl p-5 space-y-3 shadow-sm hover:border-custom-accent/30 transition-all">
-                    <div className="w-10 h-10 bg-custom-accent/10 rounded-lg flex items-center justify-center text-custom-accent">
-                      <Film className="w-5 h-5" />
+                  <motion.div
+                    initial={{ opacity: 0, y: 45, scale: 0.96 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    whileHover={{ 
+                      y: -6,
+                      scale: 1.02,
+                      borderColor: 'rgba(226,92,36,0.4)',
+                      boxShadow: '0 20px 40px rgba(0,0,0,0.25)'
+                    }}
+                    transition={{ duration: 0.85, ease: [0.16, 1, 0.3, 1], delay: 0.5 }}
+                    className="bg-custom-secondary/45 border border-custom-color rounded-2xl p-6 space-y-4 shadow-md relative overflow-hidden group transition-colors duration-300"
+                  >
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-custom-accent/2 rounded-full blur-xl pointer-events-none" />
+                    <div className="w-11 h-11 bg-custom-accent/10 rounded-xl flex items-center justify-center text-custom-accent group-hover:scale-110 transition-transform">
+                      <Film className="w-5.5 h-5.5" />
                     </div>
-                    <h3 className="text-sm font-bold font-serif tracking-wider uppercase text-custom-primary">
+                    <motion.h3 
+                      initial={{ opacity: 0, x: -12 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: 0.65 }}
+                      className="text-sm font-bold font-serif tracking-wider uppercase text-custom-primary"
+                    >
                       3. Chronos Video Engine
-                    </h3>
+                    </motion.h3>
                     <p className="text-xs text-custom-secondary leading-relaxed">
                       Upscale, sharpen, and denoise video sources frame-by-frame with zero latency. Features hardware-accelerated rendering and frame extraction. Save, crop, and compile directly to local storage.
                     </p>
-                  </div>
+                  </motion.div>
 
                 </div>
               </div>
@@ -1327,7 +1405,7 @@ export default function App() {
             />
 
             {/* Core Section Workspace */}
-            <div className="flex-1 flex overflow-hidden relative">
+            <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
               
               {/* Left sidebar toolbox */}
               <Toolbar
@@ -1453,74 +1531,81 @@ export default function App() {
                           </p>
                         </div>
                       ) : (
-                        mediaFiles.map((file) => {
-                          const isSelected = fileName === file.name;
-                          return (
-                            <div
-                              key={file.id}
-                              onClick={() => loadLibraryFile(file)}
-                              className={`group relative p-2.5 rounded-xl border cursor-pointer transition-all flex items-center space-x-3 ${
-                                isSelected
-                                  ? 'bg-custom-accent/10 border-custom-accent shadow-md shadow-custom-accent/5'
-                                  : 'bg-custom-tertiary/40 border-custom-color hover:border-custom-accent/30 hover:bg-custom-tertiary/80'
-                              }`}
-                            >
-                              {/* Thumbnail preview */}
-                              <div className="w-12 h-12 rounded-lg overflow-hidden bg-black/40 border border-custom-color flex items-center justify-center relative flex-shrink-0">
-                                {file.type === 'image' ? (
-                                  <img
-                                    src={file.url}
-                                    alt={file.name}
-                                    className="w-full h-full object-cover"
-                                    referrerPolicy="no-referrer"
-                                  />
-                                ) : (
-                                  <div className="relative w-full h-full flex items-center justify-center">
-                                    <Film className="w-5 h-5 text-custom-accent" />
-                                    <span className="absolute bottom-0 right-0 text-[8px] bg-black/60 text-white px-1 py-0.5 rounded font-mono">
-                                      VID
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-
-                              {/* File Details */}
-                              <div className="flex-1 min-w-0">
-                                <p className={`text-xs font-bold truncate ${
-                                  isSelected ? 'text-custom-accent' : 'text-custom-primary'
-                                }`}>
-                                  {file.name}
-                                </p>
-                                <p className="text-[10px] text-custom-secondary uppercase tracking-wider font-mono mt-0.5">
-                                  {file.type}
-                                </p>
-                              </div>
-
-                              {/* Delete button */}
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  // Remove file from mediaFiles
-                                  const updated = mediaFiles.filter((f) => f.id !== file.id);
-                                  setMediaFiles(updated);
-                                  if (fileName === file.name) {
-                                    // If active file was deleted, load next one or clear
-                                    if (updated.length > 0) {
-                                      loadLibraryFile(updated[0]);
-                                    } else {
-                                      setHasFile(false);
-                                      setFileType(null);
-                                    }
-                                  }
-                                }}
-                                className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-500/10 text-custom-secondary hover:text-red-500 transition-all absolute top-2 right-2"
-                                title="Remove artifact from vault"
+                        <AnimatePresence initial={false}>
+                          {mediaFiles.map((file) => {
+                            const isSelected = fileName === file.name;
+                            return (
+                              <motion.div
+                                layout
+                                initial={{ opacity: 0, y: 15 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.95 }}
+                                transition={{ duration: 0.2 }}
+                                key={file.id}
+                                onClick={() => loadLibraryFile(file)}
+                                className={`group relative p-2.5 rounded-xl border cursor-pointer transition-all flex items-center space-x-3 ${
+                                  isSelected
+                                    ? 'bg-custom-accent/10 border-custom-accent shadow-md shadow-custom-accent/5'
+                                    : 'bg-custom-tertiary/40 border-custom-color hover:border-custom-accent/30 hover:bg-custom-tertiary/80'
+                                }`}
                               >
-                                <span className="text-xs font-bold font-sans">×</span>
-                              </button>
-                            </div>
-                          );
-                        })
+                                {/* Thumbnail preview */}
+                                <div className="w-12 h-12 rounded-lg overflow-hidden bg-black/40 border border-custom-color flex items-center justify-center relative flex-shrink-0">
+                                  {file.type === 'image' ? (
+                                    <img
+                                      src={file.url}
+                                      alt={file.name}
+                                      className="w-full h-full object-cover"
+                                      referrerPolicy="no-referrer"
+                                    />
+                                  ) : (
+                                    <div className="relative w-full h-full flex items-center justify-center">
+                                      <Film className="w-5 h-5 text-custom-accent" />
+                                      <span className="absolute bottom-0 right-0 text-[8px] bg-black/60 text-white px-1 py-0.5 rounded font-mono">
+                                        VID
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* File Details */}
+                                <div className="flex-1 min-w-0">
+                                  <p className={`text-xs font-bold truncate ${
+                                    isSelected ? 'text-custom-accent' : 'text-custom-primary'
+                                  }`}>
+                                    {file.name}
+                                  </p>
+                                  <p className="text-[10px] text-custom-secondary uppercase tracking-wider font-mono mt-0.5">
+                                    {file.type}
+                                  </p>
+                                </div>
+
+                                {/* Delete button */}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    // Remove file from mediaFiles
+                                    const updated = mediaFiles.filter((f) => f.id !== file.id);
+                                    setMediaFiles(updated);
+                                    if (fileName === file.name) {
+                                      // If active file was deleted, load next one or clear
+                                      if (updated.length > 0) {
+                                        loadLibraryFile(updated[0]);
+                                      } else {
+                                        setHasFile(false);
+                                        setFileType(null);
+                                      }
+                                    }
+                                  }}
+                                  className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-500/10 text-custom-secondary hover:text-red-500 transition-all absolute top-2 right-2"
+                                  title="Remove artifact from vault"
+                                >
+                                  <span className="text-xs font-bold font-sans">×</span>
+                                </button>
+                              </motion.div>
+                            );
+                          })}
+                        </AnimatePresence>
                       )}
                     </div>
 
@@ -1544,12 +1629,17 @@ export default function App() {
                       if (s.currentTime !== undefined) {
                         video.currentTime = s.currentTime;
                       }
+                      if (s.playbackRate !== undefined) {
+                        video.playbackRate = s.playbackRate;
+                      }
                       if (s.playing !== undefined) {
                         if (s.playing) {
                           // Loop within trim margins
                           if (video.currentTime >= prev.endTime || video.currentTime < prev.startTime) {
                             video.currentTime = prev.startTime;
                           }
+                          // Keep playbackRate synced
+                          video.playbackRate = next.playbackRate || 1.0;
                           video.play();
                         } else {
                           video.pause();

@@ -84,7 +84,12 @@ export default function Workspace({
   const [splitRatio, setSplitRatio] = useState(0.5);
   const [isPressingCompare, setIsPressingCompare] = useState(false);
 
-  const [isChangesTrackerCollapsed, setIsChangesTrackerCollapsed] = useState(false);
+  const [isChangesTrackerCollapsed, setIsChangesTrackerCollapsed] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth < 768;
+    }
+    return false;
+  });
 
   // Keep track of the last loaded file name to fit only on new selection
   const lastFileRef = useRef<string | null>(null);
@@ -136,6 +141,38 @@ export default function Workspace({
         label: 'RGB Gains', 
         value: `R:${adjustments.redChannel > 0 ? '+' : ''}${adjustments.redChannel} G:${adjustments.greenChannel > 0 ? '+' : ''}${adjustments.greenChannel} B:${adjustments.blueChannel > 0 ? '+' : ''}${adjustments.blueChannel}`, 
         color: 'text-red-400 bg-red-500/10 border-red-500/20' 
+      });
+    }
+    if (adjustments.gamma !== 100) {
+      list.push({
+        key: 'gamma',
+        label: 'Gamma Curvature',
+        value: `${(adjustments.gamma / 100).toFixed(2)}x`,
+        color: 'text-amber-400 bg-amber-500/10 border-amber-500/20'
+      });
+    }
+    if (adjustments.vignette > 0) {
+      list.push({
+        key: 'vignette',
+        label: 'Vignette Falloff',
+        value: `${adjustments.vignette}%`,
+        color: 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20'
+      });
+    }
+    if (adjustments.pixelate > 0) {
+      list.push({
+        key: 'pixelate',
+        label: 'Pixelate Mosaic',
+        value: `${adjustments.pixelate}px`,
+        color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+      });
+    }
+    if (adjustments.invert) {
+      list.push({
+        key: 'invert',
+        label: 'Invert Palette',
+        value: 'Enabled',
+        color: 'text-rose-400 bg-rose-500/10 border-rose-500/20'
       });
     }
 
@@ -277,7 +314,11 @@ export default function Workspace({
       adjustments.saturation,
       adjustments.redChannel,
       adjustments.greenChannel,
-      adjustments.blueChannel
+      adjustments.blueChannel,
+      adjustments.gamma,
+      adjustments.vignette,
+      adjustments.pixelate,
+      adjustments.invert
     );
 
     // 2. Sharpen Detail
@@ -567,25 +608,55 @@ export default function Workspace({
       const srcY = y + offset.y;
 
       if (activeTool === 'clone') {
-        // Draw clone stamp circle
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(x, y, cloneSettings.brushSize / 2, 0, Math.PI * 2);
-        ctx.clip();
-        ctx.globalAlpha = cloneSettings.brushStrength;
-        // Draw the source canvas onto destination
-        ctx.drawImage(
-          baseCanvas,
-          srcX - cloneSettings.brushSize / 2,
-          srcY - cloneSettings.brushSize / 2,
-          cloneSettings.brushSize,
-          cloneSettings.brushSize,
-          x - cloneSettings.brushSize / 2,
-          y - cloneSettings.brushSize / 2,
-          cloneSettings.brushSize,
-          cloneSettings.brushSize
-        );
-        ctx.restore();
+        const radius = cloneSettings.brushSize / 2;
+        const w = baseCanvas.width;
+        const h = baseCanvas.height;
+
+        // Bounding box of source in canvas space
+        const sx = srcX - radius;
+        const sy = srcY - radius;
+        const sw = cloneSettings.brushSize;
+        const sh = cloneSettings.brushSize;
+
+        // Bounding box of destination in canvas space
+        const dx = x - radius;
+        const dy = y - radius;
+
+        // Intersect source box with [0, 0, w, h]
+        const clipX0 = Math.max(0, sx);
+        const clipY0 = Math.max(0, sy);
+        const clipX1 = Math.min(w, sx + sw);
+        const clipY1 = Math.min(h, sy + sh);
+
+        const clipW = clipX1 - clipX0;
+        const clipH = clipY1 - clipY0;
+
+        if (clipW > 0 && clipH > 0) {
+          // Adjust destination box proportionally to match clipped source offset
+          const shiftX = clipX0 - sx;
+          const shiftY = clipY0 - sy;
+
+          const targetX = dx + shiftX;
+          const targetY = dy + shiftY;
+
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(x, y, radius, 0, Math.PI * 2);
+          ctx.clip();
+          ctx.globalAlpha = cloneSettings.brushStrength;
+          ctx.drawImage(
+            baseCanvas,
+            clipX0,
+            clipY0,
+            clipW,
+            clipH,
+            targetX,
+            targetY,
+            clipW,
+            clipH
+          );
+          ctx.restore();
+        }
       } else if (activeTool === 'heal') {
         // Apply blended heal
         applyHealBrush(ctx, srcX, srcY, x, y, cloneSettings.brushSize / 2);
@@ -1195,10 +1266,10 @@ export default function Workspace({
 
       {/* Floating Canvas Zoom/Pan HUD Quick Bar */}
       {imageDimensions && (
-        <div className="absolute bottom-4 left-4 bg-[#121214]/90 backdrop-blur border border-[#222226] px-3 py-1.5 rounded-lg flex items-center space-x-3 text-xs font-mono text-gray-400 shadow-2xl z-30">
-          <span>Scale: <strong className="text-white">{Math.round(zoom * 100)}%</strong></span>
+        <div className="absolute bottom-2 xs:bottom-3 sm:bottom-4 left-2 xs:left-3 sm:left-4 bg-[#121214]/90 backdrop-blur border border-[#222226] px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg flex items-center space-x-1.5 xs:space-x-2 sm:space-x-3 text-[10px] sm:text-xs font-mono text-gray-400 shadow-2xl z-30">
+          <span><span className="hidden xs:inline">Scale: </span><strong className="text-white">{Math.round(zoom * 100)}%</strong></span>
           <span className="text-zinc-700">|</span>
-          <div className="flex items-center space-x-1.5">
+          <div className="flex items-center space-x-1 xs:space-x-1.5">
             <button
               onClick={() => setZoom(Math.max(0.1, zoom - 0.15))}
               className="p-1 rounded hover:bg-[#1c1c1f] hover:text-white transition-colors"

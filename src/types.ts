@@ -13,6 +13,10 @@ export interface FilterAdjustments {
   redChannel: number;    // -100 to 100 (RGB Gains)
   greenChannel: number;  // -100 to 100
   blueChannel: number;   // -100 to 100
+  gamma: number;         // 10 to 300 (maps to 0.1 to 3.0)
+  vignette: number;      // 0 to 100
+  pixelate: number;      // 0 to 50
+  invert: boolean;       // true/false
 }
 
 export const INITIAL_ADJUSTMENTS: FilterAdjustments = {
@@ -28,6 +32,10 @@ export const INITIAL_ADJUSTMENTS: FilterAdjustments = {
   redChannel: 0,
   greenChannel: 0,
   blueChannel: 0,
+  gamma: 100,
+  vignette: 0,
+  pixelate: 0,
+  invert: false,
 };
 
 export interface ScaleSettings {
@@ -58,6 +66,7 @@ export interface VideoState {
   enhanceContrast?: boolean;
   enhanceSharpen?: number; // 0 to 100
   enhanceDenoise?: number; // 0 to 100
+  playbackRate?: number; // 0.25 to 4.0
 }
 
 export interface HistoryItem {
